@@ -36,6 +36,10 @@ Gem::Specification.new do |spec|
   spec.add_dependency "colorize", ">= 0.8"
   spec.add_dependency "activesupport", "~> 7.0"
   
+  # Include common vendor adapters by default
+  spec.add_dependency "radfish-supermicro", "~> 0.1"
+  spec.add_dependency "radfish-idrac", "~> 0.1"
+  
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "webmock", "~> 3.0"
   spec.add_development_dependency "debug", "~> 1.0"
