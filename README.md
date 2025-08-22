@@ -11,12 +11,13 @@ radfish (core gem)
 ├── Core modules (define interfaces)
 ├── Vendor detection
 ├── Client (delegates to adapters)
-├── Base classes
-└── Built-in adapters:
-    ├── radfish-idrac (Dell adapter)
-    │   └── IdracAdapter → wraps idrac gem
-    └── radfish-supermicro (Supermicro adapter)
-        └── SupermicroAdapter → wraps supermicro gem
+└── Base classes
+
+radfish-idrac (Dell adapter)
+└── IdracAdapter → wraps idrac gem
+
+radfish-supermicro (Supermicro adapter)  
+└── SupermicroAdapter → wraps supermicro gem
 
 Future adapters:
 - radfish-hpe (HPE iLO)
@@ -51,19 +52,21 @@ Add to your Gemfile:
 
 ```ruby
 gem 'radfish'
+
+# Add vendor-specific adapters as needed
+gem 'radfish-idrac'      # For Dell servers
+gem 'radfish-supermicro'  # For Supermicro servers
 ```
 
 Or install directly:
 
 ```bash
 gem install radfish
+gem install radfish-idrac      # For Dell servers  
+gem install radfish-supermicro  # For Supermicro servers
 ```
 
-The radfish gem now includes built-in support for:
-- **Dell iDRAC** (via radfish-idrac)
-- **Supermicro** (via radfish-supermicro)
-
-These common adapters are included automatically, so you don't need to install them separately. Additional vendor support can be added as needed.
+The adapters will be automatically detected and loaded when available.
 
 ## CLI Usage
 
