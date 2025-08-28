@@ -72,6 +72,7 @@ require 'radfish/core/virtual_media'
 require 'radfish/core/boot'
 require 'radfish/core/jobs'
 require 'radfish/core/utility'
+require 'radfish/core/network'
 require 'radfish/vendor_detector'
 require 'radfish/client'
 

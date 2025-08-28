@@ -377,6 +377,64 @@ module Radfish
       end
     end
     
+    # Network Commands
+    desc "network SUBCOMMAND", "BMC network configuration"
+    option :ip, desc: "IP address to set"
+    option :mask, desc: "Subnet mask"
+    option :gateway, desc: "Gateway address"
+    option :dns1, desc: "Primary DNS server"
+    option :dns2, desc: "Secondary DNS server"
+    option :hostname, desc: "BMC hostname"
+    def network(subcommand = 'show')
+      with_client do |client|
+        case subcommand
+        when 'show', 'get', 'status'
+          data = client.get_bmc_network
+          if options[:json]
+            puts JSON.pretty_generate(data)
+          else
+            puts "=== BMC Network Configuration ===".green
+            puts "IP Address:  #{data['ipv4_address']}".cyan
+            puts "Subnet Mask: #{data['subnet_mask']}".cyan
+            puts "Gateway:     #{data['gateway']}".cyan
+            puts "Mode:        #{data['mode']}".cyan
+            puts "MAC Address: #{data['mac_address']}".cyan
+            puts "Hostname:    #{data['hostname']}".cyan if data['hostname']
+            puts "FQDN:        #{data['fqdn']}".cyan if data['fqdn']
+            if data['dns_servers'] && !data['dns_servers'].empty?
+              puts "DNS Servers: #{data['dns_servers'].join(', ')}".cyan
+            end
+          end
+        when 'set', 'configure'
+          if !options[:ip] && !options[:hostname] && !options[:dns1]
+            error "Must provide at least --ip, --hostname, or --dns1"
+            return
+          end
+          
+          if options[:ip] && !options[:mask]
+            error "Must provide --mask when setting --ip"
+            return
+          end
+          
+          result = client.set_bmc_network(
+            ip_address: options[:ip],
+            subnet_mask: options[:mask],
+            gateway: options[:gateway],
+            dns_primary: options[:dns1],
+            dns_secondary: options[:dns2],
+            hostname: options[:hostname]
+          )
+          output_result({ success: result }, result ? "Network configured successfully" : "Failed to configure network")
+        when 'dhcp'
+          result = client.set_bmc_dhcp
+          output_result({ success: result }, result ? "BMC set to DHCP mode" : "Failed to set DHCP mode")
+        else
+          error "Unknown network command: #{subcommand}"
+          puts "Available: show, set, dhcp"
+        end
+      end
+    end
+    
     # Config Commands
     desc "config SUBCOMMAND", "Configuration file management"
     def config(subcommand = 'generate')
