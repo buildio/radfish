@@ -74,6 +74,13 @@ module Radfish
         when 'status', 'state'
           status = client.power_status
           output_result({ power_status: status }, "Power Status: #{status}", status == 'On' ? :green : :yellow)
+        when 'consumption', 'usage', 'watts'
+          begin
+            watts = client.power_consumption_watts
+            output_result({ power_consumption_watts: watts }, "Power Consumption: #{watts}W", :green)
+          rescue NotImplementedError
+            error "Power consumption not supported for this vendor"
+          end
         when 'on'
           result = client.power_on
           output_result({ success: result }, result ? "System powered on" : "Failed to power on")
@@ -96,7 +103,7 @@ module Radfish
           output_result({ success: result }, result ? "Power cycle initiated" : "Failed to power cycle")
         else
           error "Unknown power command: #{subcommand}"
-          puts "Available: status, on, off, force-off, restart, force-restart, cycle"
+          puts "Available: status, on, off, force-off, restart, force-restart, cycle, consumption"
           puts "Use --force flag with 'off' or 'restart' to skip graceful shutdown"
         end
       end

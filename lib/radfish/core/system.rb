@@ -34,6 +34,10 @@ module Radfish
       def power_consumption
         raise NotImplementedError, "Adapter must implement #power_consumption"
       end
+      
+      def power_consumption_watts
+        raise NotImplementedError, "Adapter must implement #power_consumption_watts"
+      end
     end
   end
 end
