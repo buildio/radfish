@@ -47,7 +47,8 @@ module Radfish
       
       req = Net::HTTP::Get.new(uri)
       req.basic_auth(username, password)
-      req['Accept'] = 'application/json'
+      req['Accept']     = 'application/json'
+      req['Connection'] = 'keep-alive'
       
       begin
         res = http.request(req)
@@ -112,6 +113,7 @@ module Radfish
       req = Net::HTTP::Get.new(uri)
       req.basic_auth(username, password)
       req['Accept'] = 'application/json'
+      req['Connection'] = 'keep-alive'
       
       begin
         res = http.request(req)
@@ -164,6 +166,7 @@ module Radfish
       req = Net::HTTP::Get.new(uri)
       req.basic_auth(username, password)
       req['Accept'] = 'application/json'
+      req['Connection'] = 'keep-alive'
       
       begin
         res = http.request(req)
