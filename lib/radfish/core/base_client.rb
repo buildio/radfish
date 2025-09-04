@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'logger'
+
 module Radfish
   module Core
     class BaseClient
@@ -23,26 +25,49 @@ module Radfish
         
         # Store any vendor-specific options
         @options = options
+        
+        # Create the HTTP client
+        @http_client = HttpClient.new(
+          host: host,
+          port: port,
+          use_ssl: use_ssl,
+          verify_ssl: verify_ssl,
+          username: username,
+          password: password,
+          verbosity: verbosity,
+          retry_count: retry_count,
+          retry_delay: retry_delay
+        )
       end
       
       def base_url
-        protocol = use_ssl ? 'https' : 'http'
-        "#{protocol}://#{host}:#{port}"
+        @http_client.base_url
       end
       
-      def connection
-        @connection ||= Faraday.new(url: base_url, ssl: { verify: verify_ssl }) do |faraday|
-          faraday.request :multipart
-          faraday.request :url_encoded
-          faraday.adapter Faraday.default_adapter
-          
-          if @verbosity > 0
-            faraday.response :logger, Logger.new(STDOUT), bodies: @verbosity >= 2 do |logger|
-              logger.filter(/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]')
-              logger.filter(/(Password"=>"?)([^,"]+)/, '\1[FILTERED]')
-            end
-          end
-        end
+      def verbosity=(value)
+        @verbosity = value
+        @http_client.verbosity = value if @http_client
+      end
+      
+      # Delegate HTTP methods to the client
+      def http_get(path, **options)
+        @http_client.get(path, **options)
+      end
+      
+      def http_post(path, **options)
+        @http_client.post(path, **options)
+      end
+      
+      def http_put(path, **options)
+        @http_client.put(path, **options)
+      end
+      
+      def http_patch(path, **options)
+        @http_client.patch(path, **options)
+      end
+      
+      def http_delete(path, **options)
+        @http_client.delete(path, **options)
       end
       
       def with_retries(max_retries = nil, initial_delay = nil, error_classes = nil)
@@ -102,6 +127,13 @@ module Radfish
         else
           raise Error, "Failed to get service root: #{response.status}"
         end
+      end
+      
+      protected
+      
+      # Access to the underlying HTTP client for subclasses
+      def http_client
+        @http_client
       end
       
       # Helper for handling responses

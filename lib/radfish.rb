@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'httparty'
 require 'faraday'
 require 'faraday/multipart'
+require 'faraday/retry'
 require 'base64'
 require 'uri'
 require 'json'
@@ -17,6 +17,18 @@ module Radfish
   class NotFoundError < Error; end
   class TimeoutError < Error; end
   class UnsupportedVendorError < Error; end
+  
+  # Virtual Media specific errors
+  class VirtualMediaError < Error; end
+  class VirtualMediaNotFoundError < VirtualMediaError; end
+  class VirtualMediaConnectionError < VirtualMediaError; end
+  class VirtualMediaLicenseError < VirtualMediaError; end
+  class VirtualMediaBusyError < VirtualMediaError; end
+  
+  # Task/Job errors
+  class TaskError < Error; end
+  class TaskTimeoutError < TaskError; end
+  class TaskFailedError < TaskError; end
 
   module Debuggable
     def debug(message, level = 1, color = :light_cyan)
@@ -62,19 +74,25 @@ module Radfish
   end
 end
 
-require 'radfish/version'
-require 'radfish/core/base_client'
-require 'radfish/core/session'
-require 'radfish/core/power'
-require 'radfish/core/system'
-require 'radfish/core/storage'
-require 'radfish/core/virtual_media'
-require 'radfish/core/boot'
-require 'radfish/core/jobs'
-require 'radfish/core/utility'
-require 'radfish/core/network'
-require 'radfish/vendor_detector'
-require 'radfish/client'
+require_relative 'radfish/version'
+require_relative 'radfish/http_client'
+require_relative 'radfish/core/base_client'
+require_relative 'radfish/core/session'
+require_relative 'radfish/core/power'
+require_relative 'radfish/core/system'
+require_relative 'radfish/core/storage'
+require_relative 'radfish/core/virtual_media'
+require_relative 'radfish/core/boot'
+require_relative 'radfish/core/jobs'
+require_relative 'radfish/core/utility'
+require_relative 'radfish/core/network'
+require_relative 'radfish/vendor_detector'
+require_relative 'radfish/system_info'
+require_relative 'radfish/bmc_info'
+require_relative 'radfish/power_info'
+require_relative 'radfish/thermal_info'
+require_relative 'radfish/pci_info'
+require_relative 'radfish/client'
 
 # Auto-load adapters if available
 begin

@@ -24,7 +24,7 @@ module Radfish
         @vendor = detector.detect
         
         if @vendor.nil?
-          raise UnsupportedVendorError, "Could not detect vendor for #{host}"
+          raise UnsupportedVendorError, "Could not detect vendor for #{host}:#{options[:port] || 443}. Please check: 1) The host is reachable, 2) Credentials are correct (#{username}), 3) The BMC supports Redfish API"
         end
         
         debug "Auto-detected vendor: #{@vendor}", 1, :green
@@ -111,6 +111,33 @@ module Radfish
     
     def adapter_class
       @adapter.class
+    end
+    
+    # Lazy-loading API methods that return structured data
+    
+    def system
+      @system ||= SystemInfo.new(self)
+    end
+    
+    def bmc
+      @bmc ||= BmcInfo.new(self)
+    end
+    
+    def power
+      @power ||= PowerInfo.new(self)
+    end
+    
+    def thermal
+      @thermal ||= ThermalInfo.new(self)
+    end
+    
+    def pci
+      @pci ||= PciInfo.new(self)
+    end
+    
+    def service_tag
+      # Get service_tag from system info
+      system.service_tag
     end
     
     def supported_features

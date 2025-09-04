@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require 'net/http'
 require 'json'
-require 'uri'
-require 'openssl'
 
 module Radfish
   class VendorDetector
+    include Debuggable
     
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl
     attr_accessor :verbosity
@@ -19,17 +17,39 @@ module Radfish
       @use_ssl = use_ssl
       @verify_ssl = verify_ssl
       @verbosity = 0
+      
+      # Use the shared HTTP client
+      @http_client = HttpClient.new(
+        host: host,
+        port: port,
+        use_ssl: use_ssl,
+        verify_ssl: verify_ssl,
+        username: username,
+        password: password,
+        verbosity: 0,  # Will be updated via verbosity= setter
+        retry_count: 2,  # Fewer retries for detection
+        retry_delay: 0.5
+      )
+    end
+    
+    def verbosity=(value)
+      @verbosity = value
+      @http_client.verbosity = value if @http_client
     end
     
     def detect
-      puts "Detecting vendor for #{host}..." if @verbosity && @verbosity > 0
+      debug "Detecting vendor for #{host}:#{port}...", 1, :cyan
       
       # Try to get the Redfish service root
       service_root = fetch_service_root
-      return nil unless service_root
+      
+      unless service_root
+        debug "Failed to fetch service root from #{host}:#{port}", 1, :red
+        return nil
+      end
       
       vendor = identify_vendor(service_root)
-      puts "Detected vendor: #{vendor || 'Unknown'}" if @verbosity && @verbosity > 0
+      debug "Detected vendor: #{vendor || 'Unknown'} for #{host}:#{port}", 1, vendor ? :green : :yellow
       
       vendor
     end
@@ -37,30 +57,38 @@ module Radfish
     private
     
     def fetch_service_root
-      uri = URI("#{base_url}/redfish/v1")
-      
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = use_ssl
-      http.verify_mode = OpenSSL::SSL::VERIFY_NONE unless verify_ssl
-      http.open_timeout = 5
-      http.read_timeout = 10
-      
-      req = Net::HTTP::Get.new(uri)
-      req.basic_auth(username, password)
-      req['Accept']     = 'application/json'
-      req['Connection'] = 'keep-alive'
-      
       begin
-        res = http.request(req)
+        # Use a shorter timeout for vendor detection (5 seconds total)
+        response = @http_client.get('/redfish/v1', timeout: 5)
         
-        if res.code.to_i == 200
-          JSON.parse(res.body)
+        if response.status == 200
+          JSON.parse(response.body)
+        elsif response.status == 401
+          debug "Authentication failed (HTTP 401) - check username/password", 1, :red
+          nil
+        elsif response.status == 404
+          debug "Redfish API not found at /redfish/v1 (HTTP 404)", 1, :red
+          nil
         else
-          puts "Failed to fetch service root: HTTP #{res.code}" if @verbosity && @verbosity > 0
+          debug "Failed to fetch service root: HTTP #{response.status}", 1, :red
+          debug "Response body: #{response.body[0..200]}" if response.body && @verbosity >= 2
           nil
         end
+      rescue ConnectionError, TimeoutError => e
+        debug "Connection failed to #{host}:#{port} - #{e.message}", 1, :red
+        nil
+      rescue JSON::ParserError => e
+        debug "Invalid JSON response from BMC: #{e.message}", 1, :red
+        nil
+      rescue Faraday::ConnectionFailed => e
+        debug "Connection refused or failed to #{host}:#{port} - #{e.message}", 1, :red
+        nil
+      rescue Faraday::TimeoutError => e
+        debug "Request timed out to #{host}:#{port} - #{e.message}", 1, :red
+        nil
       rescue => e
-        puts "Error fetching service root: #{e.message}" if @verbosity && @verbosity > 0
+        debug "Unexpected error fetching service root: #{e.class} - #{e.message}", 1, :red
+        debug "Backtrace: #{e.backtrace.first(3).join("\n")}" if @verbosity >= 2
         nil
       end
     end
@@ -102,24 +130,11 @@ module Radfish
     end
     
     def detect_from_managers(managers_path)
-      uri = URI("#{base_url}#{managers_path}")
-      
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = use_ssl
-      http.verify_mode = OpenSSL::SSL::VERIFY_NONE unless verify_ssl
-      http.open_timeout = 5
-      http.read_timeout = 10
-      
-      req = Net::HTTP::Get.new(uri)
-      req.basic_auth(username, password)
-      req['Accept'] = 'application/json'
-      req['Connection'] = 'keep-alive'
-      
       begin
-        res = http.request(req)
+        response = @http_client.get(managers_path)
         
-        if res.code.to_i == 200
-          data = JSON.parse(res.body)
+        if response.status == 200
+          data = JSON.parse(response.body)
           
           # Check first manager
           if data['Members'] && data['Members'].first
@@ -137,7 +152,6 @@ module Radfish
               # Check manager model/description
               model = manager_data['Model'] || ''
               description = manager_data['Description'] || ''
-              # firmware = manager_data['FirmwareVersion'] || ''  # Reserved for future use
               
               return 'dell' if model.match?(/idrac/i) || description.match?(/idrac/i)
               return 'hpe' if model.match?(/ilo/i) || description.match?(/ilo/i)
@@ -148,31 +162,18 @@ module Radfish
           end
         end
       rescue => e
-        puts "Error detecting from managers: #{e.message}" if @verbosity && @verbosity > 1
+        debug "Error detecting from managers: #{e.message}", 3, :yellow
       end
       
       nil
     end
     
     def fetch_manager(manager_path)
-      uri = URI("#{base_url}#{manager_path}")
-      
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = use_ssl
-      http.verify_mode = OpenSSL::SSL::VERIFY_NONE unless verify_ssl
-      http.open_timeout = 5
-      http.read_timeout = 10
-      
-      req = Net::HTTP::Get.new(uri)
-      req.basic_auth(username, password)
-      req['Accept'] = 'application/json'
-      req['Connection'] = 'keep-alive'
-      
       begin
-        res = http.request(req)
-        JSON.parse(res.body) if res.code.to_i == 200
+        response = @http_client.get(manager_path)
+        JSON.parse(response.body) if response.status == 200
       rescue => e
-        puts "Error fetching manager: #{e.message}" if @verbosity && @verbosity > 1
+        debug "Error fetching manager: #{e.message}", 3, :yellow
         nil
       end
     end
@@ -192,11 +193,6 @@ module Radfish
       else
         vendor_string.to_s.downcase
       end
-    end
-    
-    def base_url
-      protocol = use_ssl ? 'https' : 'http'
-      "#{protocol}://#{host}:#{port}"
     end
   end
 end

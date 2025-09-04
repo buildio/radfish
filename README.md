@@ -2,6 +2,16 @@
 
 A Ruby client library that provides a unified interface for managing servers via Redfish API, with automatic vendor detection and adaptation.
 
+## Data Normalization
+
+Radfish takes a minimal approach to data normalization to ensure consistency across different systems and avoid mismatches from varying formats:
+
+- **Manufacturer/Make**: Returns simplified vendor names (e.g., "Dell" instead of "Dell Inc.", "Supermicro" instead of "Super Micro Computer")
+- **Model**: Returns core model identifiers without marketing prefixes (e.g., "R640" instead of "PowerEdge R640")
+- **Consistent Fields**: All adapters normalize their data to use the same field names and formats
+
+This approach minimizes potential mismatches across older systems or spacing/hyphenation issues with multi-token descriptors.
+
 ## Architecture
 
 Radfish provides a vendor-agnostic interface for server management through Redfish, automatically detecting and adapting to different hardware vendors. The architecture consists of:

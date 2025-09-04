@@ -3,8 +3,8 @@
 module Radfish
   module Core
     module Boot
-      def boot_options
-        raise NotImplementedError, "Adapter must implement #boot_options"
+      def boot_config
+        raise NotImplementedError, "Adapter must implement #boot_config"
       end
       
       def set_boot_override(target, persistent: false)
