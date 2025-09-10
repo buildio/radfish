@@ -152,6 +152,7 @@ module Radfish
       features << :boot if @adapter.respond_to?(:boot_options)
       features << :jobs if @adapter.respond_to?(:jobs)
       features << :utility if @adapter.respond_to?(:sel_log)
+      features << :network if @adapter.respond_to?(:get_bmc_network) || @adapter.respond_to?(:set_bmc_network)
       
       features
     end
