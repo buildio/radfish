@@ -4,8 +4,8 @@ module Radfish
   # Lightweight value object representing a storage controller.
   # Holds a stable identifier and optional name.
   class Controller
-    attr_reader :id, :name, :model, :vendor, :adapter_data, :firmware_version, 
-                :encryption_mode, :encryption_capability, :controller_type, 
+    attr_reader :id, :name, :model, :vendor, :adapter_data, :firmware_version,
+                :encryption_mode, :encryption_capability, :controller_type,
                 :pci_slot, :status, :drives_count
 
     def initialize(client:, id:, name: nil, model: nil, vendor: nil, adapter_data: nil,
@@ -36,10 +36,10 @@ module Radfish
     end
 
     def to_h
-      { 
-        id: id, 
-        name: name, 
-        model: model, 
+      {
+        id: id,
+        name: name,
+        model: model,
         vendor: vendor,
         firmware_version: firmware_version,
         encryption_mode: encryption_mode,
@@ -54,5 +54,6 @@ module Radfish
     def ==(other)
       other.is_a?(Controller) && other.id == id && other.vendor.to_s == vendor.to_s
     end
+
   end
 end

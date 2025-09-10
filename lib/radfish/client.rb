@@ -188,32 +188,28 @@ module Radfish
     private
 
     def build_controller(raw)
-      # Extract all available controller fields
-      attrs = {}
-      
-      # Extract each field with both string and symbol key support
-      %w[id name model firmware_version encryption_mode encryption_capability 
-         controller_type pci_slot status drives_count].each do |field|
-        attrs[field.to_sym] = if raw.respond_to?(:[])
-                                raw[field] || raw[field.to_sym]
-                              elsif raw.respond_to?(field.to_sym)
-                                raw.send(field.to_sym)
-                              end
+      # Expect adapters to provide normalized fields; keep mapping straightforward.
+      fetch = ->(key) do
+        if raw.respond_to?(:[])
+          raw[key.to_s] || raw[key.to_sym]
+        elsif raw.respond_to?(key.to_sym)
+          raw.public_send(key.to_sym)
+        end
       end
-      
+
       Controller.new(
-        client: self, 
-        id: attrs[:id],
-        name: attrs[:name],
-        model: attrs[:model],
-        firmware_version: attrs[:firmware_version],
-        encryption_mode: attrs[:encryption_mode],
-        encryption_capability: attrs[:encryption_capability],
-        controller_type: attrs[:controller_type],
-        pci_slot: attrs[:pci_slot],
-        status: attrs[:status],
-        drives_count: attrs[:drives_count],
-        vendor: @vendor, 
+        client: self,
+        id: fetch.call(:id),
+        name: fetch.call(:name),
+        model: fetch.call(:model),
+        firmware_version: fetch.call(:firmware_version),
+        encryption_mode: fetch.call(:encryption_mode),
+        encryption_capability: fetch.call(:encryption_capability),
+        controller_type: fetch.call(:controller_type),
+        pci_slot: fetch.call(:pci_slot),
+        status: fetch.call(:status),
+        drives_count: fetch.call(:drives_count),
+        vendor: @vendor,
         adapter_data: raw
       )
     end

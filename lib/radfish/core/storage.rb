@@ -18,6 +18,7 @@ module Radfish
       def storage_summary
         raise NotImplementedError, "Adapter must implement #storage_summary"
       end
+
     end
   end
 end
