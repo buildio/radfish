@@ -7,12 +7,12 @@ module Radfish
         raise NotImplementedError, "Adapter must implement #storage_controllers"
       end
       
-      def drives
-        raise NotImplementedError, "Adapter must implement #drives"
+      def drives(controller_id)
+        raise NotImplementedError, "Adapter must implement #drives(controller_id)"
       end
       
-      def volumes
-        raise NotImplementedError, "Adapter must implement #volumes"
+      def volumes(controller_id)
+        raise NotImplementedError, "Adapter must implement #volumes(controller_id)"
       end
       
       def storage_summary

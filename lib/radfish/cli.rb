@@ -351,23 +351,96 @@ module Radfish
             end
           end
         when 'drives', 'disks'
-          data = client.drives
+          # Get all drives from all controllers
+          controllers = client.storage_controllers
+          all_drives = []
+          
+          controllers.each do |controller|
+            # Handle different ways the controller ID might be stored
+            controller_id = if controller.is_a?(OpenStruct)
+                             # For OpenStruct, access the internal table
+                             controller.instance_variable_get(:@table)[:"@odata.id"] ||
+                             controller.instance_variable_get(:@table)["@odata.id"] ||
+                             controller.id
+                           elsif controller.respond_to?(:[])
+                             # For Hash-like objects
+                             controller['@odata.id'] || controller['id']
+                           else
+                             # For other objects
+                             controller.id rescue nil
+                           end
+            
+            if controller_id
+              begin
+                drives = client.drives(controller_id)
+                all_drives.concat(drives) if drives
+              rescue => e
+                puts "Error fetching drives for controller #{controller['name'] || controller_id}: #{e.message}".yellow if options[:verbose]
+              end
+            end
+          end
+          
           if options[:json]
-            puts JSON.pretty_generate(data)
+            puts JSON.pretty_generate(all_drives)
           else
             puts "=== Physical Drives ===".green
-            data.each do |drive|
-              puts "#{drive['name']}: #{drive['capacity_gb']} GB - #{drive['status']}".cyan
+            if all_drives.empty?
+              puts "No drives found".yellow
+            else
+              all_drives.each do |drive|
+                cert_status = drive['certified'] || drive.certified rescue nil
+                cert_info = cert_status ? " [Certified: #{cert_status}]" : ""
+                capacity = drive['capacity_gb'] || drive.capacity_gb rescue "Unknown"
+                status = drive['status'] || drive.status rescue "Unknown"
+                name = drive['name'] || drive.name rescue "Unknown"
+                puts "#{name}: #{capacity} GB - #{status}#{cert_info}".cyan
+              end
             end
           end
         when 'volumes', 'raids'
-          data = client.volumes
+          # Get all volumes from all controllers
+          controllers = client.storage_controllers
+          all_volumes = []
+          
+          controllers.each do |controller|
+            # Handle different ways the controller ID might be stored
+            controller_id = if controller.is_a?(OpenStruct)
+                             # For OpenStruct, access the internal table
+                             controller.instance_variable_get(:@table)[:"@odata.id"] ||
+                             controller.instance_variable_get(:@table)["@odata.id"] ||
+                             controller.id
+                           elsif controller.respond_to?(:[])
+                             # For Hash-like objects
+                             controller['@odata.id'] || controller['id']
+                           else
+                             # For other objects
+                             controller.id rescue nil
+                           end
+            
+            if controller_id
+              begin
+                volumes = client.volumes(controller_id)
+                all_volumes.concat(volumes) if volumes
+              rescue => e
+                puts "Error fetching volumes for controller #{controller['name'] || controller_id}: #{e.message}".yellow if options[:verbose]
+              end
+            end
+          end
+          
           if options[:json]
-            puts JSON.pretty_generate(data)
+            puts JSON.pretty_generate(all_volumes)
           else
             puts "=== Volumes ===".green
-            data.each do |vol|
-              puts "#{vol['name']}: #{vol['capacity_gb']} GB - #{vol['raid_type']}".cyan
+            if all_volumes.empty?
+              puts "No volumes found".yellow
+            else
+              all_volumes.each do |vol|
+                name = vol['name'] || vol.name rescue "Unknown"
+                capacity = vol['capacity_gb'] || vol.capacity_gb rescue "Unknown"
+                raid_type = vol['raid_type'] || vol.raid_type rescue "Unknown"
+                status = vol['status'] || vol.status rescue "Unknown"
+                puts "#{name}: #{capacity} GB - #{raid_type} (Status: #{status})".cyan
+              end
             end
           end
         else
@@ -795,7 +868,10 @@ module Radfish
         puts "\n=== Power Supplies ===".green
         data.each do |psu|
           status_color = psu['status'] == 'OK' ? :green : :red
-          puts "#{psu['name']}: #{psu['watts']}W - #{psu['status']}".send(status_color)
+          voltage_info = psu['voltage'] ? "#{psu['voltage']}V (#{psu['voltage_human'] || 'Unknown'})" : ""
+          puts "#{psu['name']}: #{voltage_info} #{psu['watts']}W - #{psu['status']}".send(status_color)
+          puts "  Model: #{psu['model']}" if psu['model']
+          puts "  Serial: #{psu['serial']}" if psu['serial']
         end
       end
     end
