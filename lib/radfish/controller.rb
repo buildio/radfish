@@ -6,11 +6,12 @@ module Radfish
   class Controller
     attr_reader :id, :name, :model, :vendor, :adapter_data, :firmware_version,
                 :encryption_mode, :encryption_capability, :controller_type,
-                :pci_slot, :status, :drives_count
+                :pci_slot, :status, :drives_count, :battery_status
 
     def initialize(client:, id:, name: nil, model: nil, vendor: nil, adapter_data: nil,
                    firmware_version: nil, encryption_mode: nil, encryption_capability: nil,
-                   controller_type: nil, pci_slot: nil, status: nil, drives_count: nil)
+                   controller_type: nil, pci_slot: nil, status: nil, drives_count: nil,
+                   battery_status: nil)
       @client = client
       @id = id
       @name = name
@@ -24,6 +25,7 @@ module Radfish
       @pci_slot = pci_slot
       @status = status
       @drives_count = drives_count
+      @battery_status = battery_status
     end
 
     # Convenience accessors delegate to the client wrappers
@@ -47,7 +49,8 @@ module Radfish
         controller_type: controller_type,
         pci_slot: pci_slot,
         status: status,
-        drives_count: drives_count
+        drives_count: drives_count,
+        battery_status: battery_status
       }.compact
     end
 

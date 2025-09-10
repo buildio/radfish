@@ -209,6 +209,7 @@ module Radfish
         pci_slot: fetch.call(:pci_slot),
         status: fetch.call(:status),
         drives_count: fetch.call(:drives_count),
+        battery_status: fetch.call(:battery_status),
         vendor: @vendor,
         adapter_data: raw
       )
