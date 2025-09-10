@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    radfish (0.1.6)
+    radfish (0.1.7)
       activesupport (>= 7.0)
       colorize (>= 0.8)
       faraday (~> 2.0)
