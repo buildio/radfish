@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    radfish (0.1.5)
+    radfish (0.1.6)
       activesupport (>= 7.0)
       colorize (>= 0.8)
       faraday (~> 2.0)
@@ -153,6 +153,9 @@ DEPENDENCIES
   simplecov (~> 0.22)
   vcr (~> 6.2)
   webmock (~> 3.0)
+
+RUBY VERSION
+   ruby 3.3.8p144
 
 BUNDLED WITH
    2.6.9
