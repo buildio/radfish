@@ -241,6 +241,7 @@ module Radfish
         operation_name: fetch.call(:operation_name),
         write_cache_policy: fetch.call(:write_cache_policy),
         read_cache_policy: fetch.call(:read_cache_policy),
+        fastpath: fetch.call(:fastpath),
         health: fetch.call(:health),
         adapter_data: raw
       )

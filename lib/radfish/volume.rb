@@ -4,7 +4,7 @@ module Radfish
   class Volume
     # Canonical, normalized attributes only.
     attr_reader :id, :name, :capacity_bytes, :raid_type, :volume_type, :drives,
-                :encrypted, :lock_status, :stripe_size,
+                :encrypted, :lock_status, :stripe_size, :fastpath,
                 :operation_percent_complete, :operation_name,
                 :write_cache_policy, :read_cache_policy, :health,
                 :adapter_data, :controller
@@ -14,6 +14,7 @@ module Radfish
                    lock_status: nil, stripe_size: nil,
                    operation_percent_complete: nil, operation_name: nil,
                    write_cache_policy: nil, read_cache_policy: nil,
+                   fastpath: nil,
                    health: nil, adapter_data: nil)
       @client = client
       @controller = controller
@@ -30,6 +31,7 @@ module Radfish
       @operation_name = operation_name
       @write_cache_policy = write_cache_policy
       @read_cache_policy = read_cache_policy
+      @fastpath = fastpath
       @health = health
       @adapter_data = adapter_data
     end
@@ -53,6 +55,7 @@ module Radfish
         operation_name: operation_name,
         write_cache_policy: write_cache_policy,
         read_cache_policy: read_cache_policy,
+        fastpath: fastpath,
         health: health
       }.compact
     end
