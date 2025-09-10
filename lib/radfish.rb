@@ -93,6 +93,7 @@ require_relative 'radfish/power_info'
 require_relative 'radfish/thermal_info'
 require_relative 'radfish/pci_info'
 require_relative 'radfish/controller'
+require_relative 'radfish/volume'
 require_relative 'radfish/client'
 
 # Auto-load adapters if available

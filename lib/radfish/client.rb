@@ -182,7 +182,8 @@ module Radfish
 
     def volumes(controller)
       raise ArgumentError, "Controller required" unless controller.is_a?(Controller)
-      @adapter.volumes(controller)
+      raw = @adapter.volumes(controller)
+      Array(raw).map { |v| build_volume(v, controller) }
     end
 
     private
@@ -211,6 +212,29 @@ module Radfish
         drives_count: fetch.call(:drives_count),
         battery_status: fetch.call(:battery_status),
         vendor: @vendor,
+        adapter_data: raw
+      )
+    end
+
+    def build_volume(raw, controller)
+      fetch = ->(key) do
+        if raw.respond_to?(:[])
+          raw[key.to_s] || raw[key.to_sym]
+        elsif raw.respond_to?(key.to_sym)
+          raw.public_send(key.to_sym)
+        end
+      end
+
+      Volume.new(
+        client: self,
+        controller: controller,
+        id: fetch.call(:id),
+        name: fetch.call(:name),
+        capacity_bytes: fetch.call(:capacity_bytes),
+        capacity_gb: fetch.call(:capacity_gb),
+        raid_type: fetch.call(:raid_type) || fetch.call(:volume_type),
+        status: fetch.call(:status) || fetch.call(:health),
+        encrypted: fetch.call(:encrypted),
         adapter_data: raw
       )
     end

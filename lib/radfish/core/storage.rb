@@ -19,6 +19,11 @@ module Radfish
         raise NotImplementedError, "Adapter must implement #storage_summary"
       end
 
+      # Given a Volume, return its physical drive objects
+      def volume_drives(volume)
+        raise NotImplementedError, "Adapter must implement #volume_drives(volume)"
+      end
+
     end
   end
 end
