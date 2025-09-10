@@ -342,41 +342,27 @@ module Radfish
           data = client.storage_summary
           output_result(data, nil) if options[:json]
         when 'controllers'
-          data = client.storage_controllers
-          output_result(data, nil) if options[:json]
-          unless options[:json]
+          ctrls = client.controllers
+          if options[:json]
+            puts JSON.pretty_generate(ctrls.map(&:to_h))
+          else
             puts "=== Storage Controllers ===".green
-            data.each do |ctrl|
-              puts "#{ctrl['name']} (#{ctrl['id']})".cyan
+            ctrls.each do |ctrl|
+              puts "#{ctrl.name || 'Controller'} (#{ctrl.id})".cyan
             end
           end
         when 'drives', 'disks'
           # Get all drives from all controllers
-          controllers = client.storage_controllers
+          controllers = client.controllers
           all_drives = []
           
           controllers.each do |controller|
-            # Handle different ways the controller ID might be stored
-            controller_id = if controller.is_a?(OpenStruct)
-                             # For OpenStruct, access the internal table
-                             controller.instance_variable_get(:@table)[:"@odata.id"] ||
-                             controller.instance_variable_get(:@table)["@odata.id"] ||
-                             controller.id
-                           elsif controller.respond_to?(:[])
-                             # For Hash-like objects
-                             controller['@odata.id'] || controller['id']
-                           else
-                             # For other objects
-                             controller.id rescue nil
-                           end
-            
-            if controller_id
-              begin
-                drives = client.drives(controller_id)
-                all_drives.concat(drives) if drives
-              rescue => e
-                puts "Error fetching drives for controller #{controller['name'] || controller_id}: #{e.message}".yellow if options[:verbose]
-              end
+            begin
+              drives = controller.drives
+              all_drives.concat(drives) if drives
+            rescue => e
+              ctrl_name = controller.respond_to?(:name) ? controller.name : 'controller'
+              puts "Error fetching drives for #{ctrl_name}: #{e.message}".yellow if options[:verbose]
             end
           end
           
@@ -399,31 +385,16 @@ module Radfish
           end
         when 'volumes', 'raids'
           # Get all volumes from all controllers
-          controllers = client.storage_controllers
+          controllers = client.controllers
           all_volumes = []
           
           controllers.each do |controller|
-            # Handle different ways the controller ID might be stored
-            controller_id = if controller.is_a?(OpenStruct)
-                             # For OpenStruct, access the internal table
-                             controller.instance_variable_get(:@table)[:"@odata.id"] ||
-                             controller.instance_variable_get(:@table)["@odata.id"] ||
-                             controller.id
-                           elsif controller.respond_to?(:[])
-                             # For Hash-like objects
-                             controller['@odata.id'] || controller['id']
-                           else
-                             # For other objects
-                             controller.id rescue nil
-                           end
-            
-            if controller_id
-              begin
-                volumes = client.volumes(controller_id)
-                all_volumes.concat(volumes) if volumes
-              rescue => e
-                puts "Error fetching volumes for controller #{controller['name'] || controller_id}: #{e.message}".yellow if options[:verbose]
-              end
+            begin
+              volumes = controller.volumes
+              all_volumes.concat(volumes) if volumes
+            rescue => e
+              ctrl_name = controller.respond_to?(:name) ? controller.name : 'controller'
+              puts "Error fetching volumes for #{ctrl_name}: #{e.message}".yellow if options[:verbose]
             end
           end
           

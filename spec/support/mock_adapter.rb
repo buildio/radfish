@@ -171,11 +171,11 @@ module Radfish
       []
     end
     
-    def drives(controller_id)
+    def drives(controller)
       []
     end
     
-    def volumes(controller_id)
+    def volumes(controller)
       []
     end
     

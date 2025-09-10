@@ -62,7 +62,7 @@ module Radfish
     end
     
     def controllers
-      @cache[:controllers] ||= @client.adapter.storage_controllers
+      @cache[:controllers] ||= @client.controllers
     end
     
     private

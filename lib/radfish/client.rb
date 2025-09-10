@@ -165,5 +165,40 @@ module Radfish
         base_url: @adapter.base_url
       }
     end
+
+    # Storage convenience API
+    # Return normalized Controller objects while keeping adapter APIs intact.
+    def controllers
+      raw = @adapter.storage_controllers
+      Array(raw).map { |c| build_controller(c) }
+    end
+
+    # Public storage API (not backward-compatible): require a Controller object.
+    def drives(controller)
+      raise ArgumentError, "Controller required" unless controller.is_a?(Controller)
+      @adapter.drives(controller)
+    end
+
+    def volumes(controller)
+      raise ArgumentError, "Controller required" unless controller.is_a?(Controller)
+      @adapter.volumes(controller)
+    end
+
+    private
+
+    def build_controller(raw)
+      # Only extract friendly name/id if plainly available; keep raw in adapter_data
+      id = if raw.respond_to?(:[])
+             raw['id'] || raw[:id]
+           elsif raw.respond_to?(:id)
+             raw.id
+           end
+      name = if raw.respond_to?(:[])
+               raw['name'] || raw[:name]
+             elsif raw.respond_to?(:name)
+               raw.name
+             end
+      Controller.new(client: self, id: id, name: name, vendor: @vendor, adapter_data: raw)
+    end
   end
 end

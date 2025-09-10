@@ -129,7 +129,9 @@ radfish system [OPTIONS]           # Display system information
 radfish cpus [OPTIONS]             # List CPUs
 radfish memory [OPTIONS]           # List memory modules
 radfish nics [OPTIONS]             # List network interfaces
-radfish drives [OPTIONS]           # List storage drives
+radfish storage controllers        # List storage controllers
+radfish storage drives             # List drives across controllers
+radfish storage volumes            # List volumes across controllers
 radfish psus [OPTIONS]             # List power supplies
 ```
 
@@ -361,7 +363,8 @@ info = client.system_info
 client.cpus      # CPU information
 client.memory    # Memory DIMMs
 client.nics      # Network interfaces
-client.drives    # Physical drives
+client.controllers.each { |c| c.drives }   # Physical drives (per controller)
+client.controllers.each { |c| c.volumes }  # RAID volumes (per controller)
 client.psus      # Power supplies
 ```
 
