@@ -7,6 +7,22 @@ module Radfish
         raise NotImplementedError, "Adapter must implement #system_info"
       end
       
+      def service_tag
+        raise NotImplementedError, "Adapter must implement #service_tag"
+      end
+      
+      def make
+        raise NotImplementedError, "Adapter must implement #make"
+      end
+      
+      def model
+        raise NotImplementedError, "Adapter must implement #model"
+      end
+      
+      def serial
+        raise NotImplementedError, "Adapter must implement #serial"
+      end
+      
       def cpus
         raise NotImplementedError, "Adapter must implement #cpus"
       end

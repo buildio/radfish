@@ -63,6 +63,59 @@ module Radfish
       Factories.build_system_info if defined?(Factories)
     end
     
+    def service_tag
+      system_info['ServiceTag'] || system_info['SerialNumber']
+    end
+    
+    def make
+      system_info['Manufacturer']
+    end
+    
+    def model
+      system_info['Model']
+    end
+    
+    def serial
+      system_info['SerialNumber']
+    end
+    
+    # Hardware components
+    def cpus
+      []
+    end
+    
+    def memory
+      []
+    end
+    
+    def nics
+      []
+    end
+    
+    def fans
+      []
+    end
+    
+    def temperatures
+      []
+    end
+    
+    def psus
+      []
+    end
+    
+    def power_consumption
+      {}
+    end
+    
+    def power_consumption_watts
+      0
+    end
+    
+    def system_health
+      'OK'
+    end
+    
     # Virtual Media
     def virtual_media
       []

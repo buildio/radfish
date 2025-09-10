@@ -20,19 +20,19 @@ module Radfish
     end
     
     def service_tag
-      fetch_system_info[:service_tag]
+      @cache[:service_tag] ||= @client.adapter.service_tag
     end
     
     def make
-      fetch_system_info[:manufacturer] || fetch_system_info[:make]
+      @cache[:make] ||= @client.adapter.make
     end
     
     def model
-      fetch_system_info[:model]
+      @cache[:model] ||= @client.adapter.model
     end
     
     def serial
-      fetch_system_info[:serial_number] || fetch_system_info[:serial]
+      @cache[:serial] ||= @client.adapter.serial
     end
     
     def cpus
