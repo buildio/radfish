@@ -231,10 +231,17 @@ module Radfish
         id: fetch.call(:id),
         name: fetch.call(:name),
         capacity_bytes: fetch.call(:capacity_bytes),
-        capacity_gb: fetch.call(:capacity_gb),
-        raid_type: fetch.call(:raid_type) || fetch.call(:volume_type),
-        status: fetch.call(:status) || fetch.call(:health),
+        raid_type: fetch.call(:raid_type),
+        volume_type: fetch.call(:volume_type),
+        drives: fetch.call(:drives),
         encrypted: fetch.call(:encrypted),
+        lock_status: fetch.call(:lock_status),
+        stripe_size: fetch.call(:stripe_size),
+        operation_percent_complete: fetch.call(:operation_percent_complete),
+        operation_name: fetch.call(:operation_name),
+        write_cache_policy: fetch.call(:write_cache_policy),
+        read_cache_policy: fetch.call(:read_cache_policy),
+        health: fetch.call(:health),
         adapter_data: raw
       )
     end

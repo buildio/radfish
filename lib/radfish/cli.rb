@@ -406,11 +406,13 @@ module Radfish
               puts "No volumes found".yellow
             else
               all_volumes.each do |vol|
-                name = vol['name'] || vol.name rescue "Unknown"
-                capacity = vol['capacity_gb'] || vol.capacity_gb rescue "Unknown"
-                raid_type = vol['raid_type'] || vol.raid_type rescue "Unknown"
-                status = vol['status'] || vol.status rescue "Unknown"
-                puts "#{name}: #{capacity} GB - #{raid_type} (Status: #{status})".cyan
+                name = vol.name
+                bytes = vol.respond_to?(:capacity_bytes) ? vol.capacity_bytes : nil
+                capacity = bytes ? (bytes.to_f / (1000**3)).round(2) : nil
+                raid_type = vol.raid_type
+                status = vol.health
+                cap_str = capacity ? "#{capacity} GB" : "Unknown size"
+                puts "#{name}: #{cap_str} - #{raid_type} (Status: #{status})".cyan
               end
             end
           end
