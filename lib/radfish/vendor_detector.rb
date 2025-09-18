@@ -9,13 +9,14 @@ module Radfish
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl
     attr_accessor :verbosity
     
-    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false)
+    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, host_header: nil)
       @host = host
       @username = username
       @password = password
       @port = port
       @use_ssl = use_ssl
       @verify_ssl = verify_ssl
+      @host_header = host_header
       @verbosity = 0
       
       # Use the shared HTTP client
@@ -26,6 +27,7 @@ module Radfish
         verify_ssl: verify_ssl,
         username: username,
         password: password,
+        host_header: host_header,  # Pass host_header to HttpClient
         verbosity: 0,  # Will be updated via verbosity= setter
         retry_count: 2,  # Fewer retries for detection
         retry_delay: 0.5
@@ -39,8 +41,10 @@ module Radfish
     
     def detect
       debug "Detecting vendor for #{host}:#{port}...", 1, :cyan
+      debug "Host header: #{@host_header}" if @host_header
       
       # Try to get the Redfish service root
+      debug "Fetching service root...", 2, :yellow
       service_root = fetch_service_root
       
       unless service_root
@@ -48,6 +52,7 @@ module Radfish
         return nil
       end
       
+      debug "Service root fetched successfully", 2, :green
       vendor = identify_vendor(service_root)
       debug "Detected vendor: #{vendor || 'Unknown'} for #{host}:#{port}", 1, vendor ? :green : :yellow
       
@@ -58,10 +63,15 @@ module Radfish
     
     def fetch_service_root
       begin
-        # Use a shorter timeout for vendor detection (5 seconds total)
-        response = @http_client.get('/redfish/v1', timeout: 5)
+        debug "About to make HTTP GET request to /redfish/v1", 2, :yellow
+        # Use longer timeout for SSH tunnels (15 seconds), shorter for direct connections (5 seconds)
+        timeout = @host_header ? 15 : 5
+        debug "Using timeout: #{timeout}s (SSH tunnel detected)" if @host_header
+        response = @http_client.get('/redfish/v1', timeout: timeout)
+        debug "HTTP GET request completed", 2, :green
         
         if response.status == 200
+          debug "Got 200 response, parsing JSON...", 2, :green
           JSON.parse(response.body)
         elsif response.status == 401
           debug "Authentication failed (HTTP 401) - check username/password", 1, :red

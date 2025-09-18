@@ -18,7 +18,8 @@ module Radfish
           password: password,
           port: options[:port] || 443,
           use_ssl: options.fetch(:use_ssl, true),
-          verify_ssl: options.fetch(:verify_ssl, false)
+          verify_ssl: options.fetch(:verify_ssl, false),
+          host_header: options[:host_header]
         )
         detector.verbosity = @verbosity
         @vendor = detector.detect
@@ -184,6 +185,41 @@ module Radfish
       raise ArgumentError, "Controller required" unless controller.is_a?(Controller)
       raw = @adapter.volumes(controller)
       Array(raw).map { |v| build_volume(v, controller) }
+    end
+
+    # Storage management methods - pass through to adapter
+    # These are Dell-specific for now but will be generalized when other vendors add support
+    
+    def enable_local_key_management(controller_id:, passphrase:, key_id:)
+      if @adapter.respond_to?(:enable_local_key_management)
+        @adapter.enable_local_key_management(controller_id: controller_id, passphrase: passphrase, key_id: key_id)
+      else
+        raise NotImplementedError, "Local key management not supported by #{@vendor} adapter"
+      end
+    end
+    
+    def disable_local_key_management(controller_id:)
+      if @adapter.respond_to?(:disable_local_key_management)
+        @adapter.disable_local_key_management(controller_id: controller_id)
+      else
+        raise NotImplementedError, "Local key management not supported by #{@vendor} adapter"
+      end
+    end
+    
+    def create_virtual_disk(**options)
+      if @adapter.respond_to?(:create_virtual_disk)
+        @adapter.create_virtual_disk(**options)
+      else
+        raise NotImplementedError, "Virtual disk creation not supported by #{@vendor} adapter"
+      end
+    end
+    
+    def delete_volume(volume_odata_id)
+      if @adapter.respond_to?(:delete_volume)
+        @adapter.delete_volume(volume_odata_id)
+      else
+        raise NotImplementedError, "Volume deletion not supported by #{@vendor} adapter"
+      end
     end
 
     private
