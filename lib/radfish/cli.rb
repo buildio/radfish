@@ -340,7 +340,15 @@ module Radfish
         case subcommand
         when 'summary', 'all'
           data = client.storage_summary
-          output_result(data, nil) if options[:json]
+          if options[:json]
+            puts JSON.pretty_generate(data)
+          else
+            puts "=== Storage Summary ===".green
+            puts "Total Controllers: #{data[:controller_count]}".cyan
+            data[:controllers]&.each do |ctrl|
+              puts "  #{ctrl[:name] || ctrl[:id]}: #{ctrl[:drive_count]} drives, #{ctrl[:volume_count]} volumes".cyan
+            end
+          end
         when 'controllers'
           ctrls = client.controllers
           if options[:json]

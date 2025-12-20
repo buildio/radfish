@@ -124,7 +124,9 @@ module Radfish
         when /lenovo/i, /thinkserver/i, /thinksystem/i
           return 'lenovo'
         when /asrockrack/i, /asrock/i
-          return 'asrockrack'
+          return 'ami'
+        when /ami/i, /megarac/i
+          return 'ami'
         end
       end
       
@@ -167,7 +169,8 @@ module Radfish
               return 'hpe' if model.match?(/ilo/i) || description.match?(/ilo/i)
               return 'supermicro' if model.match?(/supermicro/i) || description.match?(/smc/i)
               return 'lenovo' if model.match?(/lenovo/i) || description.match?(/xcc/i)
-              return 'asrockrack' if model.match?(/asrock/i)
+              return 'ami' if model.match?(/asrock/i) || description.match?(/asrock/i)
+              return 'ami' if description.match?(/bmc/i) && manager_data.dig('Oem', 'Ami')
             end
           end
         end
@@ -199,7 +202,9 @@ module Radfish
       when /lenovo/i
         'lenovo'
       when /asrock/i
-        'asrockrack'
+        'ami'
+      when /ami/i, /megarac/i
+        'ami'
       else
         vendor_string.to_s.downcase
       end

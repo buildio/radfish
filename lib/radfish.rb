@@ -98,13 +98,19 @@ require_relative 'radfish/client'
 
 # Auto-load adapters if available
 begin
-  require 'radfish/idrac_adapter'
+  require 'radfish-idrac'
 rescue LoadError
   # radfish-idrac gem not installed
 end
 
 begin
-  require 'radfish/supermicro_adapter'
+  require 'radfish-supermicro'
 rescue LoadError
   # radfish-supermicro gem not installed
+end
+
+begin
+  require 'radfish-ami'
+rescue LoadError
+  # radfish-ami gem not installed
 end
