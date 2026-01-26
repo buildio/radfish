@@ -108,9 +108,7 @@ module Radfish
           false
         end
       end
-      
-      private
-      
+
       def verbosity
         client.verbosity
       end

@@ -58,6 +58,7 @@ RSpec.describe Radfish::CLI do
     
     before do
       allow(Radfish::Client).to receive(:new).and_return(mock_client)
+      allow(mock_client).to receive(:verbosity=)
       allow(mock_client).to receive(:login).and_return(true)
       allow(mock_client).to receive(:logout).and_return(true)
       cli.options = { 
@@ -101,6 +102,7 @@ RSpec.describe Radfish::CLI do
     
     before do
       allow(Radfish::Client).to receive(:new).and_return(mock_client)
+      allow(mock_client).to receive(:verbosity=)
       allow(mock_client).to receive(:login).and_return(true)
       allow(mock_client).to receive(:logout).and_return(true)
       cli.options = { 
@@ -150,6 +152,7 @@ RSpec.describe Radfish::CLI do
     
     before do
       allow(Radfish::Client).to receive(:new).and_return(mock_client)
+      allow(mock_client).to receive(:verbosity=)
       allow(mock_client).to receive(:login).and_return(true)
       allow(mock_client).to receive(:logout).and_return(true)
       cli.options = { 
