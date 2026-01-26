@@ -14,10 +14,13 @@ module Radfish
       end
       
       def connection
-        @connection ||= Faraday.new(url: client.base_url, ssl: { verify: client.verify_ssl }) do |faraday|
-          faraday.request :url_encoded
-          faraday.adapter Faraday.default_adapter
-        end
+        url = URI(client.base_url)
+        @connection ||= HttpClient.new(host: url.host, port: url.port,
+                                       use_ssl: url.scheme == 'https', verify_ssl: client.verify_ssl,
+                                       host_header: client.host_header,
+                                       retry_count: client.retry_count,
+                                       retry_delay: client.retry_delay,
+                                       verbosity: verbosity)
       end
       
       def create
@@ -32,10 +35,9 @@ module Radfish
           'Content-Type' => 'application/json',
           'Accept' => 'application/json'
         }
-        headers['Host'] = client.host_header if client.host_header
-        
+
         begin
-          response = connection.post('/redfish/v1/SessionService/Sessions', payload, headers)
+          response = connection.post('/redfish/v1/SessionService/Sessions', body: payload, headers: headers)
           
           if response.status == 201
             @x_auth_token = response.headers['x-auth-token']
@@ -72,10 +74,9 @@ module Radfish
           'X-Auth-Token' => @x_auth_token,
           'Accept' => 'application/json'
         }
-        headers['Host'] = client.host_header if client.host_header
-        
+
         begin
-          response = connection.delete("/redfish/v1/SessionService/Sessions/#{@session_id}", nil, headers)
+          response = connection.delete("/redfish/v1/SessionService/Sessions/#{@session_id}", headers: headers)
           
           if response.status == 204 || response.status == 200
             debug "Session deleted successfully", 1, :green
@@ -99,10 +100,9 @@ module Radfish
           'X-Auth-Token' => @x_auth_token,
           'Accept' => 'application/json'
         }
-        headers['Host'] = client.host_header if client.host_header
-        
+
         begin
-          response = connection.get("/redfish/v1/SessionService/Sessions/#{@session_id}", nil, headers)
+          response = connection.get("/redfish/v1/SessionService/Sessions/#{@session_id}", headers: headers)
           response.status == 200
         rescue
           false
