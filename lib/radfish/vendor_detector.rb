@@ -60,7 +60,36 @@ module Radfish
     end
     
     private
-    
+
+    def check_response(response, redirects = 2)
+      if response.status == 200
+        debug "Got 200 response, parsing JSON...", 2, :green
+        JSON.parse(response.body)
+      elsif [301, 302, 307, 308].include?(response.status)
+        if redirects.zero?
+          debug "Got 302 response, but followed already too many redirects", 1, :red
+          nil
+        elsif response['location'].to_s.empty?
+          debug "Got 302 response, but with invalid redirect", 1, :red
+          nil
+        else
+          debug "Got 302 response, following redirect", 2, :yellow
+          response = yield(response['location'])
+          check_response(response, redirects - 1)
+        end
+      elsif response.status == 401
+        debug "Authentication failed (HTTP 401) - check username/password", 1, :red
+        nil
+      elsif response.status == 404
+        debug "Redfish API not found at /redfish/v1 (HTTP 404)", 1, :red
+        nil
+      else
+        debug "Failed to fetch service root: HTTP #{response.status}", 1, :red
+        debug "Response body: #{response.body[0..200]}" if response.body && @verbosity >= 2
+        nil
+      end
+    end
+
     def fetch_service_root
       begin
         debug "About to make HTTP GET request to /redfish/v1", 2, :yellow
@@ -69,20 +98,9 @@ module Radfish
         debug "Using timeout: #{timeout}s (SSH tunnel detected)" if @host_header
         response = @http_client.get('/redfish/v1', timeout: timeout)
         debug "HTTP GET request completed", 2, :green
-        
-        if response.status == 200
-          debug "Got 200 response, parsing JSON...", 2, :green
-          JSON.parse(response.body)
-        elsif response.status == 401
-          debug "Authentication failed (HTTP 401) - check username/password", 1, :red
-          nil
-        elsif response.status == 404
-          debug "Redfish API not found at /redfish/v1 (HTTP 404)", 1, :red
-          nil
-        else
-          debug "Failed to fetch service root: HTTP #{response.status}", 1, :red
-          debug "Response body: #{response.body[0..200]}" if response.body && @verbosity >= 2
-          nil
+
+        check_response(response) do |location|
+          @http_client.get(location, timeout: timeout)
         end
       rescue ConnectionError, TimeoutError => e
         debug "Connection failed to #{host}:#{port} - #{e.message}", 1, :red

@@ -112,6 +112,9 @@ module Radfish
       
       def redfish_version
         response = authenticated_request(:get, "/redfish/v1")
+        if [301, 302, 307, 308].include?(response.status) && !response['location'].to_s.empty?
+          response = authenticated_request(:get, response['location'])
+        end
         if response.status == 200
           data = JSON.parse(response.body)
           data["RedfishVersion"]
@@ -122,6 +125,9 @@ module Radfish
       
       def service_root
         response = authenticated_request(:get, "/redfish/v1")
+        if [301, 302, 307, 308].include?(response.status) && !response['location'].to_s.empty?
+          response = authenticated_request(:get, response['location'])
+        end
         if response.status == 200
           JSON.parse(response.body)
         else
