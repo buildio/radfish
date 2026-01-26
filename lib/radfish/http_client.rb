@@ -249,8 +249,8 @@ module Radfish
         faraday.options.open_timeout = 10
         
         # Add logging if verbose
-        if verbosity > 0
-          faraday.response :logger, Logger.new(STDOUT), { bodies: verbosity >= 2 } do |logger|
+        if verbosity >= 2
+          faraday.response :logger, Logger.new(STDOUT), { bodies: verbosity >= 3 } do |logger|
             logger.filter(/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]')
             logger.filter(/(Password"=>"?)([^,"]+)/, '\1[FILTERED]')
             logger.filter(/("password":\s*")([^"]+)/, '\1[FILTERED]')

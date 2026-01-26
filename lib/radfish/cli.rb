@@ -16,6 +16,7 @@ module Radfish
     class_option :port, type: :numeric, default: 443, desc: 'BMC port (env: RADFISH_PORT)'
     class_option :insecure, type: :boolean, default: true, desc: 'Skip SSL verification'
     class_option :verbose, type: :boolean, default: false, desc: 'Enable verbose output'
+    class_option :debug, type: :numeric, desc: 'Debug output level'
     class_option :json, type: :boolean, default: false, desc: 'Output in JSON format'
     
     desc "detect", "Detect the vendor of a BMC"
@@ -696,8 +697,11 @@ module Radfish
       opts[:port] = options[:port] if options[:port]
       opts[:insecure] = options[:insecure] if options.key?(:insecure)
       opts[:verbose] = options[:verbose] if options.key?(:verbose)
-      
-      if opts[:verbose]
+      opts[:debug] = options[:debug] if options.key?(:debug)
+
+      if opts[:debug]
+        opts[:verbosity] = opts[:debug].to_i
+      elsif opts[:verbose]
         opts[:verbosity] = 1
       else
         opts[:verbosity] = 0
@@ -720,7 +724,7 @@ module Radfish
     def safe_call
       yield
     rescue => e
-      options[:verbose] ? e.message : 'N/A'
+      (options[:verbose] || options[:debug].to_i > 0) ? e.message : 'N/A'
     end
     
     def error(message)
