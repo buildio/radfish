@@ -391,7 +391,7 @@ client.mount_iso_and_boot("http://example.com/os.iso")
 options = client.boot_options
 
 # Set one-time boot
-client.set_boot_override("Pxe", persistent: false)
+client.set_boot_override("Pxe", persistence: 'Once')
 
 # Quick boot methods
 client.boot_to_pxe
