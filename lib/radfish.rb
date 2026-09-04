@@ -30,6 +30,10 @@ module Radfish
   class TaskTimeoutError < TaskError; end
   class TaskFailedError < TaskError; end
 
+  # Raised by Client#wait_for_boot_progress when a host does not reach the requested
+  # BootProgress state within its (per-model) ceiling.
+  class BootProgressTimeout < TimeoutError; end
+
   module Debuggable
     def debug(message, level = 1, color = :light_cyan)
       return unless respond_to?(:verbosity) && verbosity >= level
@@ -90,6 +94,7 @@ require_relative 'radfish/vendor_detector'
 require_relative 'radfish/system_info'
 require_relative 'radfish/bmc_info'
 require_relative 'radfish/power_info'
+require_relative 'radfish/boot_info'
 require_relative 'radfish/thermal_info'
 require_relative 'radfish/pci_info'
 require_relative 'radfish/controller'

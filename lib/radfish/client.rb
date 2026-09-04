@@ -127,7 +127,67 @@ module Radfish
     def power
       @power ||= PowerInfo.new(self)
     end
-    
+
+    # Boot facade: client.boot.stale_uefi_entries / client.boot.disable_entries(match:).
+    def boot
+      @boot ||= BootInfo.new(self)
+    end
+
+    # Live BMC power state (e.g. "On"/"Off"), read straight from the adapter. Replaces callers
+    # reaching through the adapter to the vendor client's own power-state call.
+    def power_state
+      @adapter.power_status
+    end
+
+    # Canonical Redfish BootProgress order (normalized to snake_case), earliest to latest. Used to
+    # decide when a host has reached OR passed a requested state.
+    BOOT_PROGRESS_ORDER = %i[
+      none
+      primary_processor_initialization_started
+      bus_initialization_started
+      memory_initialization_started
+      secondary_processor_initialization_started
+      pci_resource_config_started
+      system_hardware_initialization_complete
+      setup_entered
+      os_boot_started
+      os_running
+    ].freeze
+
+    # Normalized last BootProgress state (a snake_case symbol), or nil when the BMC omits
+    # BootProgress entirely (iDRAC8). nil means "cannot observe", never "not running".
+    def boot_progress
+      return nil unless @adapter.respond_to?(:boot_progress)
+
+      @adapter.boot_progress
+    end
+
+    # Wait until the host reaches (or passes) +target+ BootProgress, bounded by +timeout+ or, when
+    # not given, the adapter's per-model POST ceiling. Returns the observed state on success, or nil
+    # when the BMC does not report BootProgress (nothing to wait on -- the caller uses other signals).
+    # Raises Radfish::BootProgressTimeout on a stall.
+    def wait_for_boot_progress(target, timeout: nil, poll: 20)
+      target = target.to_sym
+      ceiling = timeout || (@adapter.respond_to?(:boot_progress_ceiling) ? @adapter.boot_progress_ceiling(target) : 900)
+      deadline = Time.now + ceiling
+      target_idx = BOOT_PROGRESS_ORDER.index(target)
+
+      loop do
+        state = boot_progress
+        return nil if state.nil? # BMC omits BootProgress (iDRAC8): unobservable, not a failure
+        return state if state == target
+
+        state_idx = BOOT_PROGRESS_ORDER.index(state)
+        return state if target_idx && state_idx && state_idx >= target_idx
+
+        if Time.now > deadline
+          raise BootProgressTimeout,
+                "BootProgress did not reach #{target.inspect} within #{ceiling}s (last: #{state.inspect})"
+        end
+        sleep poll
+      end
+    end
+
     def thermal
       @thermal ||= ThermalInfo.new(self)
     end
