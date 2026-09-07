@@ -34,7 +34,16 @@ module Radfish
       def boot_to_cd
         raise NotImplementedError, "Adapter must implement #boot_to_cd"
       end
-      
+
+      # Convenience: one-time boot to the virtual CD. Default delegates to the adapter's standard
+      # Redfish boot override (boot_to_cd, which defaults to a one-time override). Adapters with a
+      # more reliable vendor path (e.g. Dell's SCP ServerBoot) override this. `reboot:` is accepted
+      # for signature parity with those overrides; the default does not reboot -- the caller cycles
+      # power (the app's install_os! does).
+      def set_one_time_cd_boot(reboot: false)
+        boot_to_cd
+      end
+
       def boot_to_usb
         raise NotImplementedError, "Adapter must implement #boot_to_usb"
       end
