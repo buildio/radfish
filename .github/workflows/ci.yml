@@ -9,7 +9,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The gemspec allows activesupport >= 7.0, and activesupport below 8.1
+          # cannot be paired with json 3 (its encoder passes quirks_mode:, which
+          # json 3 removed). Cover both ends of that range.
+          - name: activesupport 8.1, json 3
+            activesupport: ">= 8.1"
+            json: ">= 3.0"
+          - name: activesupport 7.2, json 2
+            activesupport: "~> 7.2.0"
+            json: "~> 2.19"
+    name: test (${{ matrix.name }})
     env:
+      ACTIVESUPPORT_VERSION: ${{ matrix.activesupport }}
+      JSON_VERSION: ${{ matrix.json }}
       # setup-ruby's bundler-cache installs in frozen mode, which fails whenever
       # the lockfile's RUBY VERSION does not match the runner's patch level.
       BUNDLE_FROZEN: "false"
