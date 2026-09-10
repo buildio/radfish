@@ -145,9 +145,60 @@ module Radfish
         vendor_from_managers = detect_from_managers(managers_url)
         return vendor_from_managers if vendor_from_managers
       end
-      
+
+      # No server vendor matched. This may be a PDU (DMTF PowerDistribution) rather
+      # than a BMC, so probe for one before giving up.
+      pdu_vendor = detect_pdu(service_root)
+      return pdu_vendor if pdu_vendor
+
       # Default to generic if we can't determine
       'generic'
+    end
+
+    # Probe for a Redfish PowerDistribution resource. Follow the service root's
+    # PowerEquipment link when present, else try /redfish/v1/PowerDistribution/1
+    # directly. Map Manufacturer/Oem/Model to a PDU brand, or 'generic_pdu' when the
+    # body looks like a PowerDistribution but the brand is unknown. Any error skips PDU
+    # detection and lets the caller fall through to existing behavior.
+    def detect_pdu(service_root)
+      path = service_root.dig('PowerEquipment', '@odata.id') || PduAdapter::POWER_DISTRIBUTION_PATH
+      data = fetch_pdu_json(path)
+      return nil unless data.is_a?(Hash)
+
+      # A PowerEquipment aggregator is not itself a PDU; follow it to the first one.
+      data = follow_to_pdu(data) unless PduAdapter.power_distribution?(data)
+      return nil unless PduAdapter.power_distribution?(data)
+
+      vendor = PduAdapter.vendor_from(data) || 'generic_pdu'
+      debug "Detected PDU vendor: #{vendor}", 1, :green
+      vendor
+    rescue => e
+      debug "PDU detection error: #{e.class} - #{e.message}", 3, :yellow
+      nil
+    end
+
+    # Given a PowerEquipment aggregator, follow one level to a concrete PDU resource:
+    # its first PDU-collection link, then that collection's first member.
+    def follow_to_pdu(equipment)
+      collection_link = %w[RackPDUs FloorPDUs PowerShelves TransferSwitches Switchgear]
+                        .map { |key| equipment.dig(key, '@odata.id') }.compact.first
+      return nil unless collection_link
+
+      collection = fetch_pdu_json(collection_link)
+      member = collection&.dig('Members', 0, '@odata.id')
+      return nil unless member
+
+      fetch_pdu_json(member)
+    end
+
+    def fetch_pdu_json(path)
+      response = @http_client.get(path)
+      return nil unless response.status == 200
+
+      JSON.parse(response.body)
+    rescue => e
+      debug "PDU probe failed for #{path}: #{e.message}", 3, :yellow
+      nil
     end
     
     def detect_from_managers(managers_path)

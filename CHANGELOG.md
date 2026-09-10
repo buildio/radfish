@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.1] - 2026-09-11
+### Added
+- PDU (Redfish PowerDistribution) vendor introspection. One generic DMTF adapter
+  (`Radfish::PduAdapter`) serves every brand, registered under `generic_pdu`, `apc`,
+  `panduit`, `vertiv`, `servertech`, `raritan` and `eaton_redfish`. It authenticates
+  with HTTP Basic (no SessionService) and exposes `power_distribution_info`, a compact
+  identity hash whose `raw` field carries the full parsed resource for OEM electrical
+  fields.
+- `Client#pdu` facade (`Radfish::PowerDistributionInfo`) shaped like `SystemInfo`, and
+  `:power_distribution` in `supported_features` when the adapter answers a
+  PowerDistribution resource.
+- `VendorDetector` probes for a PowerDistribution resource (via the service root's
+  `PowerEquipment` link, else `/redfish/v1/PowerDistribution/1`) after the server-vendor
+  checks fail, mapping the brand or falling back to `generic_pdu`. Server detection is
+  unchanged.
+
 ## [0.3.0] - 2026-09-10
 ### Fixed
 - `radfish boot <target>` raised `ArgumentError: unknown keyword: :persistence`

@@ -128,6 +128,13 @@ module Radfish
       @power ||= PowerInfo.new(self)
     end
 
+    # PDU facade: client.pdu.power_distribution_info fields, plus client.pdu.raw for the
+    # full PowerDistribution resource (OEM electrical fields). Present on any adapter
+    # that answers a PowerDistribution resource (the generic PDU adapter).
+    def pdu
+      @pdu ||= PowerDistributionInfo.new(self)
+    end
+
     # Boot facade: client.boot.stale_uefi_entries / client.boot.disable_entries(match:).
     def boot
       @boot ||= BootInfo.new(self)
@@ -214,7 +221,8 @@ module Radfish
       features << :jobs if @adapter.respond_to?(:jobs)
       features << :utility if @adapter.respond_to?(:sel_log)
       features << :network if @adapter.respond_to?(:get_bmc_network) || @adapter.respond_to?(:set_bmc_network)
-      
+      features << :power_distribution if @adapter.respond_to?(:power_distribution_info)
+
       features
     end
     
