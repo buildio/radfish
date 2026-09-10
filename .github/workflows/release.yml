@@ -23,5 +23,13 @@ jobs:
           bundler-cache: true
       - name: Run specs
         run: bundle exec rspec
+      # Not rubygems/release-gem: that runs `bundle exec rake release`, and
+      # bundler trips over securerandom being both a default gem and a
+      # transitive activesupport dependency. Build and push with plain rubygems
+      # instead; the credentials come from OIDC either way.
+      - name: Configure RubyGems credentials
+        uses: rubygems/configure-rubygems-credentials@v2.1.0
       - name: Build and push the gem
-        uses: rubygems/release-gem@v1
+        run: |
+          gem build *.gemspec
+          gem push *.gem
