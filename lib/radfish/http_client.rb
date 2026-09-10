@@ -11,12 +11,18 @@ module Radfish
   class HttpClient
     include Debuggable
     
+    # Redirects we follow, and the methods we follow them for. GET/HEAD only:
+    # 307/308 preserve the method, but 301/302/303 do not, so re-sending a POST
+    # body after one would be wrong. Callers doing anything else get the 3xx back.
+    REDIRECT_STATUSES = [301, 302, 303, 307, 308].freeze
+    REDIRECT_METHODS = [:get, :head].freeze
+    
     attr_reader :host, :port, :use_ssl, :verify_ssl
-    attr_accessor :username, :password, :verbosity, :retry_count, :retry_delay
+    attr_accessor :username, :password, :verbosity, :retry_count, :retry_delay, :max_redirects
     
     def initialize(host:, port: 443, use_ssl: true, verify_ssl: false, 
                    username: nil, password: nil, verbosity: 0,
-                   retry_count: 3, retry_delay: 1, **options)
+                   retry_count: 3, retry_delay: 1, max_redirects: 3, **options)
       @host = host
       @port = port
       @use_ssl = use_ssl
@@ -26,6 +32,7 @@ module Radfish
       @verbosity = verbosity
       @retry_count = retry_count
       @retry_delay = retry_delay
+      @max_redirects = max_redirects
       @options = options
     end
     
@@ -54,8 +61,12 @@ module Radfish
       request(:delete, path, headers: headers, **options)
     end
     
-    def request(method, path, body: nil, headers: {}, auth: true, timeout: nil, **options)
+    # max_redirects overrides the client default for one call; pass 0 to get the
+    # 3xx response itself rather than what it points at.
+    def request(method, path, body: nil, headers: {}, auth: true, timeout: nil,
+                max_redirects: nil, **options)
       debug "Starting HTTP #{method.upcase} request to #{path}", 2, :yellow
+      redirects_left = max_redirects.nil? ? @max_redirects.to_i : max_redirects.to_i
       
       # Add host header if specified (needed for SSH tunnels to iDRAC)
       if @options[:host_header]
@@ -89,6 +100,18 @@ module Radfish
       end
       
       debug "Request completed with status: #{response.status}", 2, :green
+      
+      if redirects_left > 0 && redirect?(method, response)
+        target = safe_redirect_path(response['location'])
+        
+        if target.nil?
+          debug "Not following redirect to #{response['location'].inspect} - it leaves #{base_url}", 1, :yellow
+        else
+          debug "Following redirect to #{target}, #{redirects_left - 1} left", 2, :yellow
+          return request(method, target, body: body, headers: headers, auth: auth,
+                         timeout: timeout, max_redirects: redirects_left - 1, **options)
+        end
+      end
       
       response
     rescue Faraday::ConnectionFailed => e
@@ -127,7 +150,41 @@ module Radfish
       raise e
     end
     
+    def redirect?(method, response)
+      REDIRECT_METHODS.include?(method) && REDIRECT_STATUSES.include?(response.status)
+    end
+    
+    # The path (with query) to request for +location+, or nil when we must not
+    # follow it. Every request we make carries credentials -- Basic auth here, an
+    # X-Auth-Token on the adapters' authenticated_request -- and Faraday honours an
+    # absolute URL by replacing the host, so a BMC answering with
+    # "Location: https://elsewhere/" would be handed those credentials. Accept a
+    # relative path, or an absolute URL for this same endpoint, and return only the
+    # path so the request stays on this connection.
+    #
+    # Note: with an SSH tunnel (host_header set) an absolute redirect to the BMC's
+    # own name is refused, since that name is not the host we connect to. Relative
+    # redirects are unaffected.
+    def safe_redirect_path(location)
+      location = location.to_s
+      return nil if location.empty?
+      
+      uri = URI.parse(location)
+      return nil if uri.path.to_s.empty?
+      return nil unless uri.host.nil? || same_endpoint?(uri)
+      
+      uri.query ? "#{uri.path}?#{uri.query}" : uri.path
+    rescue URI::InvalidURIError
+      nil
+    end
+    
     private
+    
+    def same_endpoint?(uri)
+      uri.host == host &&
+        uri.port == port &&
+        uri.scheme == (use_ssl ? 'https' : 'http')
+    end
     
     def connection(auth: true)
       @connections ||= {}
