@@ -142,23 +142,23 @@ module Radfish
       []
     end
     
-    def set_boot_override(target, persistence: nil, mode: nil, persistent: false)
+    def set_boot_override(target, persistence: nil, mode: nil)
       true
     end
     
-    def boot_to_cd(mode: nil, persistence: nil)
+    def boot_to_cd(persistence: nil, mode: nil)
       set_boot_override('Cd', persistence: persistence, mode: mode)
     end
     
-    def boot_to_pxe(mode: nil, persistence: nil)
+    def boot_to_pxe(persistence: nil, mode: nil)
       set_boot_override('Pxe', persistence: persistence, mode: mode)
     end
     
-    def boot_to_disk(mode: nil, persistence: nil)
+    def boot_to_disk(persistence: nil, mode: nil)
       set_boot_override('Hdd', persistence: persistence, mode: mode)
     end
     
-    def boot_to_usb(mode: nil, persistence: nil)
+    def boot_to_usb(persistence: nil, mode: nil)
       set_boot_override('Usb', persistence: persistence, mode: mode)
     end
     

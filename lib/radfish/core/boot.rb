@@ -7,7 +7,7 @@ module Radfish
         raise NotImplementedError, "Adapter must implement #boot_config"
       end
       
-      def set_boot_override(target, persistent: false)
+      def set_boot_override(target, persistence: nil, mode: nil)
         raise NotImplementedError, "Adapter must implement #set_boot_override"
       end
       
