@@ -29,6 +29,28 @@ module Radfish
       match ? adapter.disable_boot_entries(match: match, **opts) : adapter.disable_boot_entries(**opts)
     end
 
+    # One-time boot to the virtual CD via the vendor's reliable path (Dell: an SCP import that drains
+    # any pending config job first, then sets ServerBoot BootOnce + FirstBootDevice=VCD-DVD). Returns
+    # the vendor result; raises NotImplementedError on an adapter with no SCP one-time-boot path.
+    def set_one_time_cd_boot(**opts)
+      require_adapter!(:set_one_time_cd_boot)
+      adapter.set_one_time_cd_boot(**opts)
+    end
+
+    # Poll the config job +jid+ (e.g. the BIOS config job a boot-source change schedules) to a
+    # terminal state. Returns the state string, or nil on timeout (never raises).
+    def wait_config_job(jid, **opts)
+      require_adapter!(:wait_config_job)
+      adapter.wait_config_job(jid, **opts)
+    end
+
+    # Drain every pending (non-Completed) config job so scheduling a new one does not trip LC068.
+    # Returns the ids drained.
+    def drain_config_jobs
+      require_adapter!(:drain_pending_config_jobs!)
+      adapter.drain_pending_config_jobs!
+    end
+
     # Underlying boot configuration hash (BootSourceOverride*, boot order, ...).
     def to_h
       adapter.boot_config

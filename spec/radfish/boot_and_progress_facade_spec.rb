@@ -48,6 +48,35 @@ RSpec.describe Radfish::Client, "boot/power facade" do
       allow(adapter).to receive(:respond_to?).with(:disable_boot_entries).and_return(false)
       expect { client.boot.disable_entries }.to raise_error(NotImplementedError, /does not support/)
     end
+
+    describe "BootInfo#set_one_time_cd_boot" do
+      it "delegates to the adapter, passing options through" do
+        allow(adapter).to receive(:respond_to?).with(:set_one_time_cd_boot).and_return(true)
+        expect(adapter).to receive(:set_one_time_cd_boot).with(reboot: false).and_return(status: :success)
+        expect(client.boot.set_one_time_cd_boot(reboot: false)).to eq(status: :success)
+      end
+
+      it "raises NotImplementedError on an adapter with no SCP one-time-boot path" do
+        allow(adapter).to receive(:respond_to?).with(:set_one_time_cd_boot).and_return(false)
+        expect { client.boot.set_one_time_cd_boot }.to raise_error(NotImplementedError, /does not support/)
+      end
+    end
+
+    describe "BootInfo#wait_config_job" do
+      it "delegates the job id and options to the adapter" do
+        allow(adapter).to receive(:respond_to?).with(:wait_config_job).and_return(true)
+        expect(adapter).to receive(:wait_config_job).with("JID_5", timeout: 30).and_return("Completed")
+        expect(client.boot.wait_config_job("JID_5", timeout: 30)).to eq("Completed")
+      end
+    end
+
+    describe "BootInfo#drain_config_jobs" do
+      it "delegates to the adapter's LC068 drain" do
+        allow(adapter).to receive(:respond_to?).with(:drain_pending_config_jobs!).and_return(true)
+        expect(adapter).to receive(:drain_pending_config_jobs!).and_return(["JID_1"])
+        expect(client.boot.drain_config_jobs).to eq(["JID_1"])
+      end
+    end
   end
 
   describe "#boot_progress" do
