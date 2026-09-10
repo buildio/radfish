@@ -1,0 +1,27 @@
+name: Release
+
+# Publishes to RubyGems through trusted publishing (OIDC) - no API key is stored
+# in this repository. Tag a release commit as vX.Y.Z and push the tag.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # create the GitHub release
+  id-token: write   # mint the OIDC token RubyGems verifies
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_FROZEN: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.8'
+          bundler-cache: true
+      - name: Run specs
+        run: bundle exec rspec
+      - name: Build and push the gem
+        uses: rubygems/release-gem@v1
