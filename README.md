@@ -35,6 +35,76 @@ Future adapters:
 - radfish-asrockrack
 ```
 
+### The HTTP layer
+
+`Radfish::HttpClient` is the single seam between the library and the network.
+Faraday is an implementation detail behind it: the vendor detector, the core
+classes and the adapters talk to `HttpClient` (or to `BaseClient#http_get` and
+friends, which delegate to it) and never build a Faraday connection of their
+own. Everything that BMCs make awkward lives in that one class - permissive TLS
+for old firmware, the `Host` header for SSH tunnels, retries, redirects, debug
+logging, and the translation of transport failures into Radfish errors.
+
+Two consequences worth knowing:
+
+- **Callers rescue Radfish errors, not Faraday errors.** `HttpClient` converts
+  Faraday's connection, timeout and SSL failures into `Radfish::ConnectionError`
+  and `Radfish::TimeoutError`. Code above the seam that rescues `Faraday::Error`
+  catches nothing.
+- **Adapters that wrap another gem are outside the seam.** The Dell and
+  Supermicro adapters delegate to the `idrac` and `supermicro` gems, which have
+  their own HTTP stacks, so the behaviour described here does not apply to their
+  requests.
+
+#### Errors
+
+All library errors descend from `Radfish::Error`, so one rescue catches
+everything the library raises:
+
+```
+Radfish::Error
+├── Radfish::ConnectionError        # unreachable host, refused connection, TLS failure
+├── Radfish::TimeoutError           # request took too long
+│   └── Radfish::BootProgressTimeout
+├── Radfish::AuthenticationError    # bad credentials
+├── Radfish::NotFoundError
+├── Radfish::UnsupportedVendorError # no adapter for this BMC
+├── Radfish::VirtualMediaError      # + NotFound / Connection / License / Busy
+└── Radfish::TaskError              # + TaskTimeoutError / TaskFailedError
+```
+
+#### Retries
+
+Failed requests are retried with an exponential backoff on 408, 429, 500, 502,
+503 and 504, and on connection and timeout failures. **Only idempotent methods
+are retried** - GET, HEAD, PUT and DELETE. A repeated POST is not safe on
+Redfish: it can mean a second session, a second reset, or a second job. A caller
+that knows its POST is safe to repeat can widen the set for one client:
+
+```ruby
+Radfish::HttpClient.new(
+  host: '192.168.1.100',
+  retry_count: 3,                    # attempts after the first
+  retry_delay: 1,                    # initial delay, doubled each retry
+  retry_methods: Radfish::HttpClient::IDEMPOTENT_METHODS + [:post]
+)
+```
+
+For a whole operation rather than a single request, `BaseClient#with_retries`
+wraps a block.
+
+#### Redirects
+
+Some BMCs (AMI MegaRAC, for one) redirect `/redfish/v1` to `/redfish/v1/`.
+`HttpClient` follows redirects on GET and HEAD, up to `max_redirects` hops
+(3 by default; pass `max_redirects: 0` on a call to get the 3xx response
+itself). A redirect is only followed back to the same endpoint - a relative
+path, or an absolute URL whose scheme, host and port match the BMC already
+being addressed - because every request carries credentials and Faraday would
+otherwise hand them to whatever host the `Location` header named. POST and
+PATCH redirects are returned to the caller rather than followed, since
+301/302/303 do not preserve the method.
+
 ## Features
 
 ### Automatic Vendor Detection
@@ -183,12 +253,27 @@ All commands support these options:
   --host, -h HOST          # BMC hostname or IP address
   --username, -u USER      # BMC username
   --password, -p PASS      # BMC password
-  --vendor VENDOR          # Force specific vendor (dell, supermicro, etc.)
+  --vendor, -v VENDOR      # Force specific vendor (dell, supermicro, etc.)
   --port PORT              # BMC port (default: 443)
+  --config, -c FILE        # Read options from a YAML config file
   --json                   # Output in JSON format
-  --verbose, -v            # Enable verbose output (repeat for more verbosity)
-  --no-verify-ssl          # Skip SSL certificate verification
+  --verbose                # Application-level progress messages
+  --debug [N]              # HTTP-level debug output (default 2, see below)
+  --insecure               # Skip SSL certificate verification (default: true)
 ```
+
+`--verbose` and `--debug` set the same verbosity level, and `--debug` wins:
+
+| Level | Flag          | Output                                              |
+|-------|---------------|-----------------------------------------------------|
+| 0     | (none)        | Results only                                        |
+| 1     | `--verbose`   | Progress messages from the library                  |
+| 2     | `--debug`     | Adds the HTTP request and response log              |
+| 3     | `--debug 3`   | Adds request and response bodies, and call sites    |
+
+The `Authorization` header and password fields are filtered out of the log, but
+level 3 prints request and response bodies, which can carry other sensitive
+data - read it before pasting it into an issue.
 
 ### Output Formats
 
@@ -457,8 +542,10 @@ Radfish::Client.new(
   use_ssl: true,            # Use HTTPS
   verify_ssl: false,        # Verify certificates
   direct_mode: false,       # Use Basic Auth instead of sessions
-  retry_count: 3,           # Retry failed requests
-  retry_delay: 1,           # Initial delay between retries
+  retry_count: 3,           # Retries after the first attempt
+  retry_delay: 1,           # Initial delay between retries, doubled each time
+  retry_methods: nil,       # Defaults to idempotent methods only
+  max_redirects: 3,         # Same-endpoint redirects to follow (0 disables)
   verbosity: 0              # Debug output level (0-3)
 )
 ```
@@ -468,10 +555,13 @@ Radfish::Client.new(
 Enable verbose output:
 
 ```ruby
-client.verbosity = 1  # Basic debug info
-client.verbosity = 2  # Include request/response details  
-client.verbosity = 3  # Include stack traces
+client.verbosity = 1  # Progress messages from the library
+client.verbosity = 2  # Adds the HTTP request and response log
+client.verbosity = 3  # Adds request and response bodies, and call sites
 ```
+
+These are the same levels the CLI sets with `--verbose` and `--debug N`. The
+`Authorization` header and password fields are filtered out of the log.
 
 ## Supported Vendors
 
