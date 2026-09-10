@@ -16,6 +16,7 @@ module Radfish
     class_option :port, type: :numeric, default: 443, desc: 'BMC port (env: RADFISH_PORT)'
     class_option :insecure, type: :boolean, default: true, desc: 'Skip SSL verification'
     class_option :verbose, type: :boolean, default: false, desc: 'Enable verbose output'
+    class_option :debug, type: :numeric, lazy_default: 2, desc: 'Debug output level'
     class_option :json, type: :boolean, default: false, desc: 'Output in JSON format'
     
     desc "detect", "Detect the vendor of a BMC"
@@ -25,6 +26,7 @@ module Radfish
           host: opts[:host],
           username: opts[:username],
           password: opts[:password],
+          verbosity: opts[:verbosity],
           port: opts[:port],
           verify_ssl: !opts[:insecure]
         )
@@ -336,7 +338,7 @@ module Radfish
     # Storage Commands
     desc "storage SUBCOMMAND", "Storage information"
     def storage(subcommand = 'summary')
-      with_client do |client|
+      with_client do |client, opts|
         case subcommand
         when 'summary', 'all'
           data = client.storage_summary
@@ -370,7 +372,7 @@ module Radfish
               all_drives.concat(drives) if drives
             rescue => e
               ctrl_name = controller.respond_to?(:name) ? controller.name : 'controller'
-              puts "Error fetching drives for #{ctrl_name}: #{e.message}".yellow if options[:verbose]
+              puts "Error fetching drives for #{ctrl_name}: #{e.message}".yellow if opts[:verbosity] > 0
             end
           end
           
@@ -402,7 +404,7 @@ module Radfish
               all_volumes.concat(volumes) if volumes
             rescue => e
               ctrl_name = controller.respond_to?(:name) ? controller.name : 'controller'
-              puts "Error fetching volumes for #{ctrl_name}: #{e.message}".yellow if options[:verbose]
+              puts "Error fetching volumes for #{ctrl_name}: #{e.message}".yellow if opts[:verbosity] > 0
             end
           end
           
@@ -652,17 +654,17 @@ module Radfish
           password: opts[:password],
           port: opts[:port],
           verify_ssl: !opts[:insecure],
-          direct_mode: true
+          direct_mode: true,
+          verbosity: opts[:verbosity]
         }
         
         client_opts[:vendor] = opts[:vendor] if opts[:vendor]
         
         begin
           client = Radfish::Client.new(**client_opts)
-          client.verbosity = 1 if opts[:verbose]
-          
+
           client.login
-          yield client
+          yield client, opts
         rescue => e
           error "Error: #{e.message}"
           exit 1
@@ -695,7 +697,16 @@ module Radfish
       opts[:port] = options[:port] if options[:port]
       opts[:insecure] = options[:insecure] if options.key?(:insecure)
       opts[:verbose] = options[:verbose] if options.key?(:verbose)
-      
+      opts[:debug] = options[:debug] if options.key?(:debug)
+
+      if opts[:debug]
+        opts[:verbosity] = opts[:debug].to_i
+      elsif opts[:verbose]
+        opts[:verbosity] = 1
+      else
+        opts[:verbosity] = 0
+      end
+
       # Check environment variables as fallback
       opts[:host] ||= ENV['RADFISH_HOST']
       opts[:username] ||= ENV['RADFISH_USERNAME']
@@ -713,7 +724,7 @@ module Radfish
     def safe_call
       yield
     rescue => e
-      options[:verbose] ? e.message : 'N/A'
+      (options[:verbose] || options[:debug].to_i > 0) ? e.message : 'N/A'
     end
     
     def error(message)
