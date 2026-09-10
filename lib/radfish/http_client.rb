@@ -17,12 +17,21 @@ module Radfish
     REDIRECT_STATUSES = [301, 302, 303, 307, 308].freeze
     REDIRECT_METHODS = [:get, :head].freeze
     
+    # Methods we retry by default. A repeated GET or DELETE is harmless, but a
+    # repeated POST is not: on Redfish it can mean a second session, a second
+    # reset, a second job. Callers that know a POST is safe to repeat can widen
+    # this per client with retry_methods:.
+    IDEMPOTENT_METHODS = [:get, :head, :put, :delete].freeze
+    RETRY_STATUSES = [408, 429, 500, 502, 503, 504].freeze
+    
     attr_reader :host, :port, :use_ssl, :verify_ssl
-    attr_accessor :username, :password, :verbosity, :retry_count, :retry_delay, :max_redirects
+    attr_accessor :username, :password, :verbosity, :retry_count, :retry_delay,
+                  :retry_methods, :max_redirects
     
     def initialize(host:, port: 443, use_ssl: true, verify_ssl: false, 
                    username: nil, password: nil, verbosity: 0,
-                   retry_count: 3, retry_delay: 1, max_redirects: 3, **options)
+                   retry_count: 3, retry_delay: 1,
+                   retry_methods: IDEMPOTENT_METHODS, max_redirects: 3, **options)
       @host = host
       @port = port
       @use_ssl = use_ssl
@@ -32,6 +41,7 @@ module Radfish
       @verbosity = verbosity
       @retry_count = retry_count
       @retry_delay = retry_delay
+      @retry_methods = retry_methods
       @max_redirects = max_redirects
       @options = options
     end
@@ -239,8 +249,8 @@ module Radfish
             Faraday::TimeoutError,
             Faraday::RetriableResponse
           ],
-          methods: [:get, :put, :delete, :post, :patch],
-          retry_statuses: [408, 429, 500, 502, 503, 504]
+          methods: retry_methods,
+          retry_statuses: RETRY_STATUSES
           # Removed retry_block to debug ArgumentError - can add back later
         }
         
