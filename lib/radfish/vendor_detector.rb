@@ -61,22 +61,15 @@ module Radfish
     
     private
 
-    def check_response(response, redirects = 2)
+    def check_response(response)
       if response.status == 200
         debug "Got 200 response, parsing JSON...", 2, :green
         JSON.parse(response.body)
-      elsif [301, 302, 307, 308].include?(response.status)
-        if redirects.zero?
-          debug "Got 302 response, but followed already too many redirects", 1, :red
-          nil
-        elsif response['location'].to_s.empty?
-          debug "Got 302 response, but with invalid redirect", 1, :red
-          nil
-        else
-          debug "Got 302 response, following redirect", 2, :yellow
-          response = yield(response['location'])
-          check_response(response, redirects - 1)
-        end
+      elsif HttpClient::REDIRECT_STATUSES.include?(response.status)
+        # HttpClient follows redirects that stay on this endpoint, so reaching
+        # here means it refused one or ran out of them.
+        debug "Redirect to #{response['location'].inspect} was not followed (HTTP #{response.status})", 1, :red
+        nil
       elsif response.status == 401
         debug "Authentication failed (HTTP 401) - check username/password", 1, :red
         nil
@@ -99,9 +92,7 @@ module Radfish
         response = @http_client.get('/redfish/v1', timeout: timeout)
         debug "HTTP GET request completed", 2, :green
 
-        check_response(response) do |location|
-          @http_client.get(location, timeout: timeout)
-        end
+        check_response(response)
       rescue ConnectionError, TimeoutError => e
         debug "Connection failed to #{host}:#{port} - #{e.message}", 1, :red
         nil
