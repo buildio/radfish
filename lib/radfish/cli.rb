@@ -16,7 +16,7 @@ module Radfish
     class_option :port, type: :numeric, default: 443, desc: 'BMC port (env: RADFISH_PORT)'
     class_option :insecure, type: :boolean, default: true, desc: 'Skip SSL verification'
     class_option :verbose, type: :boolean, default: false, desc: 'Enable verbose output'
-    class_option :debug, type: :numeric, desc: 'Debug output level'
+    class_option :debug, type: :numeric, lazy_default: 2, desc: 'Debug output level'
     class_option :json, type: :boolean, default: false, desc: 'Output in JSON format'
     
     desc "detect", "Detect the vendor of a BMC"
@@ -338,7 +338,7 @@ module Radfish
     # Storage Commands
     desc "storage SUBCOMMAND", "Storage information"
     def storage(subcommand = 'summary')
-      with_client do |client, options|
+      with_client do |client, opts|
         case subcommand
         when 'summary', 'all'
           data = client.storage_summary
@@ -372,7 +372,7 @@ module Radfish
               all_drives.concat(drives) if drives
             rescue => e
               ctrl_name = controller.respond_to?(:name) ? controller.name : 'controller'
-              puts "Error fetching drives for #{ctrl_name}: #{e.message}".yellow if options[:verbosity] > 0
+              puts "Error fetching drives for #{ctrl_name}: #{e.message}".yellow if opts[:verbosity] > 0
             end
           end
           
@@ -404,7 +404,7 @@ module Radfish
               all_volumes.concat(volumes) if volumes
             rescue => e
               ctrl_name = controller.respond_to?(:name) ? controller.name : 'controller'
-              puts "Error fetching volumes for #{ctrl_name}: #{e.message}".yellow if options[:verbosity] > 0
+              puts "Error fetching volumes for #{ctrl_name}: #{e.message}".yellow if opts[:verbosity] > 0
             end
           end
           

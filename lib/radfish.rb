@@ -59,9 +59,9 @@ module Radfish
     end
 
     def detect_vendor(host:, username:, password:, verbosity: 0, **options)
-      vendorDetector = VendorDetector.new(host: host, username: username, password: password, **options)
-      vendorDetector.verbosity = verbosity
-      vendorDetector.detect
+      vendor_detector = VendorDetector.new(host: host, username: username, password: password, **options)
+      vendor_detector.verbosity = verbosity
+      vendor_detector.detect
     end
 
     def register_adapter(vendor, adapter_class)
