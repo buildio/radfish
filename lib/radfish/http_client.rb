@@ -24,6 +24,16 @@ module Radfish
     IDEMPOTENT_METHODS = [:get, :head, :put, :delete].freeze
     RETRY_STATUSES = [408, 429, 500, 502, 503, 504].freeze
     
+    # Secrets stripped from the debug log. Redfish session payloads use
+    # "Password" where other calls use "password", and the session token comes
+    # back as a header, so match either case and both header shapes.
+    LOG_FILTERS = [
+      [/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]'],
+      [/(Password"=>"?)([^,"]+)/i, '\1[FILTERED]'],
+      [/("password"\s*:\s*")([^"]+)/i, '\1[FILTERED]'],
+      [/((?:X-Auth-Token)"?\s*(?:=>|:)\s*"?)([^",\n]+)/i, '\1[FILTERED]']
+    ].freeze
+    
     attr_reader :host, :port, :use_ssl, :verify_ssl
     attr_accessor :username, :password, :verbosity, :retry_count, :retry_delay,
                   :retry_methods, :max_redirects
@@ -44,6 +54,12 @@ module Radfish
       @retry_methods = retry_methods
       @max_redirects = max_redirects
       @options = options
+    end
+    
+    # The Faraday logger applies LOG_FILTERS, but our own debug lines bypass it,
+    # so anything we print that can carry a header or a body goes through here.
+    def self.scrub(text)
+      LOG_FILTERS.reduce(text.to_s) { |t, (pattern, replacement)| t.gsub(pattern, replacement) }
     end
     
     def base_url
@@ -91,7 +107,7 @@ module Radfish
       response = conn.send(method) do |req|
         debug "Setting request URL: #{path}", 3, :cyan
         req.url path
-        debug "Merging headers: #{headers}", 3, :cyan
+        debug "Merging headers: #{self.class.scrub(headers)}", 3, :cyan
         req.headers.merge!(headers)
         req.body = body if body
         
@@ -152,6 +168,10 @@ module Radfish
       end
       
       raise Radfish::ConnectionError, "SSL error connecting to #{host}: #{e.message}"
+    rescue Faraday::Error => e
+      # HttpClient is the seam: callers speak Radfish errors, not Faraday ones.
+      debug "HTTP request failed: #{e.class} - #{e.message}", 1, :red
+      raise Radfish::Error, "Request to #{host} failed: #{e.message}"
     rescue => e
       debug "HTTP request failed: #{e.class} - #{e.message}", 1, :red
       debug "Exception backtrace: #{e.backtrace.first(5).join("\n")}", 1, :red
@@ -261,9 +281,7 @@ module Radfish
         # Add logging if verbose
         if verbosity >= 2
           faraday.response :logger, Logger.new(STDOUT), { bodies: verbosity >= 3 } do |logger|
-            logger.filter(/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]')
-            logger.filter(/(Password"=>"?)([^,"]+)/, '\1[FILTERED]')
-            logger.filter(/("password":\s*")([^"]+)/, '\1[FILTERED]')
+            LOG_FILTERS.each { |pattern, replacement| logger.filter(pattern, replacement) }
           end
         end
         
