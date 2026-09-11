@@ -14,9 +14,14 @@ module Radfish
       end
       
       def connection
-        @connection ||= Faraday.new(url: client.base_url, ssl: { verify: client.verify_ssl }) do |faraday|
-          faraday.request :url_encoded
-          faraday.adapter Faraday.default_adapter
+        @connection ||= begin
+          url = URI(client.base_url)
+          HttpClient.new(host: url.host, port: url.port,
+                         use_ssl: url.scheme == 'https', verify_ssl: client.verify_ssl,
+                         host_header: client.host_header,
+                         retry_count: client.retry_count,
+                         retry_delay: client.retry_delay,
+                         verbosity: verbosity)
         end
       end
       
@@ -32,10 +37,9 @@ module Radfish
           'Content-Type' => 'application/json',
           'Accept' => 'application/json'
         }
-        headers['Host'] = client.host_header if client.host_header
-        
+
         begin
-          response = connection.post('/redfish/v1/SessionService/Sessions', payload, headers)
+          response = connection.post('/redfish/v1/SessionService/Sessions', body: payload, headers: headers)
           
           if response.status == 201
             @x_auth_token = response.headers['x-auth-token']
@@ -50,14 +54,14 @@ module Radfish
             rescue JSON::ParserError
             end
             
-            debug "Session created successfully. Token: #{@x_auth_token ? @x_auth_token[0..10] + '...' : 'nil'}", 1, :green
+            debug "Session #{@session_id || '?'} created successfully (token #{@x_auth_token ? 'received' : 'missing'})", 1, :green
             return true
           else
             debug "Failed to create session. Status: #{response.status}", 1, :red
-            debug "Response: #{response.body}", 2
+            debug "Response: #{HttpClient.scrub(response.body)}", 2
             return false
           end
-        rescue Faraday::Error => e
+        rescue Radfish::Error => e
           debug "Connection error creating session: #{e.message}", 1, :red
           return false
         end
@@ -72,10 +76,9 @@ module Radfish
           'X-Auth-Token' => @x_auth_token,
           'Accept' => 'application/json'
         }
-        headers['Host'] = client.host_header if client.host_header
-        
+
         begin
-          response = connection.delete("/redfish/v1/SessionService/Sessions/#{@session_id}", nil, headers)
+          response = connection.delete("/redfish/v1/SessionService/Sessions/#{@session_id}", headers: headers)
           
           if response.status == 204 || response.status == 200
             debug "Session deleted successfully", 1, :green
@@ -86,7 +89,7 @@ module Radfish
             debug "Failed to delete session. Status: #{response.status}", 1, :yellow
             return false
           end
-        rescue Faraday::Error => e
+        rescue Radfish::Error => e
           debug "Error deleting session: #{e.message}", 1, :yellow
           return false
         end
@@ -99,10 +102,9 @@ module Radfish
           'X-Auth-Token' => @x_auth_token,
           'Accept' => 'application/json'
         }
-        headers['Host'] = client.host_header if client.host_header
-        
+
         begin
-          response = connection.get("/redfish/v1/SessionService/Sessions/#{@session_id}", nil, headers)
+          response = connection.get("/redfish/v1/SessionService/Sessions/#{@session_id}", headers: headers)
           response.status == 200
         rescue
           false
