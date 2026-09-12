@@ -28,7 +28,11 @@ module Radfish
     # "Password" where other calls use "password", and the session token comes
     # back as a header, so match either case and both header shapes.
     LOG_FILTERS = [
-      [/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]'],
+      # Faraday logs a header as `Authorization: "Basic dXNlcjpwdw=="` and a
+      # headers hash as `"Authorization"=>"Basic ..."`, so the quote sits
+      # between the colon and the scheme. Match both shapes, and any scheme,
+      # keeping the scheme itself visible because it is useful and not secret.
+      [/(Authorization"?\s*(?:=>|:)\s*"?)((?:Basic|Bearer|Digest)\s+)?[^"\n]+/i, '\1\2[FILTERED]'],
       [/(Password"=>"?)([^,"]+)/i, '\1[FILTERED]'],
       [/("password"\s*:\s*")([^"]+)/i, '\1[FILTERED]'],
       [/((?:X-Auth-Token)"?\s*(?:=>|:)\s*"?)([^",\n]+)/i, '\1[FILTERED]']
@@ -36,12 +40,13 @@ module Radfish
     
     attr_reader :host, :port, :use_ssl, :verify_ssl
     attr_accessor :username, :password, :verbosity, :retry_count, :retry_delay,
-                  :retry_methods, :max_redirects
+                  :retry_methods, :max_redirects, :log_device
     
     def initialize(host:, port: 443, use_ssl: true, verify_ssl: false, 
                    username: nil, password: nil, verbosity: 0,
                    retry_count: 3, retry_delay: 1,
-                   retry_methods: IDEMPOTENT_METHODS, max_redirects: 3, **options)
+                   retry_methods: IDEMPOTENT_METHODS, max_redirects: 3,
+                   log_device: STDOUT, **options)
       @host = host
       @port = port
       @use_ssl = use_ssl
@@ -53,6 +58,7 @@ module Radfish
       @retry_delay = retry_delay
       @retry_methods = retry_methods
       @max_redirects = max_redirects
+      @log_device = log_device
       @options = options
     end
     
@@ -280,7 +286,7 @@ module Radfish
         
         # Add logging if verbose
         if verbosity >= 2
-          faraday.response :logger, Logger.new(STDOUT), { bodies: verbosity >= 3 } do |logger|
+          faraday.response :logger, Logger.new(log_device), { bodies: verbosity >= 3 } do |logger|
             LOG_FILTERS.each { |pattern, replacement| logger.filter(pattern, replacement) }
           end
         end
